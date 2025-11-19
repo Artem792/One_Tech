@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical">
+
+    <!-- Верхняя панель С ID -->
+    <include
+        android:id="@+id/include_top_bar"
+        layout="@layout/top_bar" />
+
+    <!-- Заголовок -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Категории товаров"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:padding="20dp"
+        android:paddingBottom="10dp" />
+
+    <!-- Сетка категорий -->
+    <GridView
+        android:id="@+id/categoriesGrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:numColumns="3"
+        android:verticalSpacing="12dp"
+        android:horizontalSpacing="12dp"
+        android:padding="20dp"
+        android:stretchMode="columnWidth" />
+
+    <!-- Нижняя навигация -->
+    <include layout="@layout/bottom_navigation" />
+
+</LinearLayout>

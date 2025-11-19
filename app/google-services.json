@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "585827921655",
+    "project_id": "onetech-d3f38",
+    "storage_bucket": "onetech-d3f38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585827921655:android:c2d68da521e1a3c14cedf2",
+        "android_client_info": {
+          "package_name": "com.example.one_tech"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "585827921655-k0vbgdvcrugjpopkjgp65315rr5n0fto.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.one_tech",
+            "certificate_hash": "f06ddb4b95bdf33a29d29e42ea019bf228041af2"
+          }
+        },
+        {
+          "client_id": "585827921655-5laa6udn140ga0j156b63rlnc2cq3659.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-Q_5NFjQjNTk7JyK0yY5J-w98qXP1lh4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "585827921655-5laa6udn140ga0j156b63rlnc2cq3659.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
