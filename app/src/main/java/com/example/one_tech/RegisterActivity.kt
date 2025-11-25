@@ -67,7 +67,14 @@ class RegisterActivity : AppCompatActivity() {
                             )
                         }
                         Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
-                        goToCatalog()
+
+                        // Проверяем роль пользователя и переходим на соответствующий экран
+                        val userId = auth.currentUser?.uid
+                        if (userId != null) {
+                            checkUserRoleAndNavigate(userId)
+                        } else {
+                            goToCatalog()
+                        }
                     } else {
                         showLoading(false)
                         Toast.makeText(this, "Ошибка регистрации: ${task.exception?.message}", Toast.LENGTH_LONG).show()
@@ -94,6 +101,35 @@ class RegisterActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 println("Ошибка сохранения пользователя: $e")
+                // Даже если сохранение в Firestore не удалось, продолжаем
+                // Пользователь уже зарегистрирован в Firebase Auth
+            }
+    }
+
+    /**
+     * Проверяет роль пользователя и перенаправляет на соответствующий экран
+     */
+    private fun checkUserRoleAndNavigate(userId: String) {
+        showLoading(true)
+
+        db.collection("admins").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                showLoading(false)
+                if (document.exists()) {
+                    // Пользователь является администратором
+                    Toast.makeText(this, "Добро пожаловать в панель администратора!", Toast.LENGTH_SHORT).show()
+                    goToAdmin()
+                } else {
+                    // Обычный пользователь
+                    goToCatalog()
+                }
+            }
+            .addOnFailureListener { exception ->
+                showLoading(false)
+                println("Ошибка проверки прав администратора: ${exception.message}")
+                // В случае ошибки считаем обычным пользователем
+                goToCatalog()
             }
     }
 
@@ -134,6 +170,12 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun goToCatalog() {
         val intent = Intent(this, CatalogActivity::class.java)
+        startActivity(intent)
+        finish()
+    }
+
+    private fun goToAdmin() {
+        val intent = Intent(this, AdminActivity::class.java)
         startActivity(intent)
         finish()
     }

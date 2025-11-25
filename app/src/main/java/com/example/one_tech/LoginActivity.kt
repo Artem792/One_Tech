@@ -35,9 +35,9 @@ class LoginActivity : AppCompatActivity() {
         // Настройка Google Sign-In
         setupGoogleSignIn()
 
-        // Если уже авторизован - сразу в каталог
+        // Если уже авторизован - проверяем права и переходим на соответствующий экран
         if (auth.currentUser != null) {
-            goToCatalog()
+            checkUserRoleAndNavigate(auth.currentUser!!.uid)
             return
         }
 
@@ -107,7 +107,13 @@ class LoginActivity : AppCompatActivity() {
                 showLoading(false)
                 if (task.isSuccessful) {
                     Toast.makeText(this, "Вход выполнен!", Toast.LENGTH_SHORT).show()
-                    goToCatalog()
+                    // Проверяем роль пользователя и переходим на соответствующий экран
+                    val userId = auth.currentUser?.uid
+                    if (userId != null) {
+                        checkUserRoleAndNavigate(userId)
+                    } else {
+                        goToCatalog()
+                    }
                 } else {
                     Toast.makeText(this, "Неверный email или пароль", Toast.LENGTH_LONG).show()
                     Log.e(TAG, "Ошибка входа: " + task.exception?.message)
@@ -167,6 +173,7 @@ class LoginActivity : AppCompatActivity() {
                 Log.d(TAG, "Google Sign-In успешен: " + account?.email)
                 account?.idToken?.let { firebaseAuthWithGoogle(it) }
             } catch (e: ApiException) {
+                showLoading(false)
                 Log.e(TAG, "Google Sign-In провален: код=" + e.statusCode + ", сообщение=" + e.message)
                 handleGoogleSignInError(e.statusCode)
             }
@@ -214,7 +221,14 @@ class LoginActivity : AppCompatActivity() {
                         )
                     }
                     Toast.makeText(this, "Вход через Google выполнен!", Toast.LENGTH_SHORT).show()
-                    goToCatalog()
+
+                    // Проверяем роль пользователя и переходим на соответствующий экран
+                    val userId = auth.currentUser?.uid
+                    if (userId != null) {
+                        checkUserRoleAndNavigate(userId)
+                    } else {
+                        goToCatalog()
+                    }
                 } else {
                     Log.e(TAG, "Firebase аутентификация провалена: " + task.exception?.message)
                     Toast.makeText(this, "Ошибка аутентификации Firebase", Toast.LENGTH_LONG).show()
@@ -240,6 +254,34 @@ class LoginActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Ошибка сохранения пользователя: $e")
+            }
+    }
+
+    /**
+     * Проверяет роль пользователя и перенаправляет на соответствующий экран
+     */
+    private fun checkUserRoleAndNavigate(userId: String) {
+        showLoading(true)
+
+        db.collection("admins").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                showLoading(false)
+                if (document.exists()) {
+                    // Пользователь является администратором
+                    Log.d(TAG, "Пользователь является администратором")
+                    goToAdmin()
+                } else {
+                    // Обычный пользователь
+                    Log.d(TAG, "Пользователь является обычным пользователем")
+                    goToCatalog()
+                }
+            }
+            .addOnFailureListener { exception ->
+                showLoading(false)
+                Log.e(TAG, "Ошибка проверки прав администратора: ${exception.message}")
+                // В случае ошибки считаем обычным пользователем
+                goToCatalog()
             }
     }
 
@@ -273,6 +315,12 @@ class LoginActivity : AppCompatActivity() {
 
     private fun goToCatalog() {
         val intent = Intent(this, CatalogActivity::class.java)
+        startActivity(intent)
+        finish()
+    }
+
+    private fun goToAdmin() {
+        val intent = Intent(this, AdminActivity::class.java)
         startActivity(intent)
         finish()
     }
