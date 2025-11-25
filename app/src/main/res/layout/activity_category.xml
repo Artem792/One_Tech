@@ -71,11 +71,25 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"/>
+            android:orientation="vertical">
+
+            <!-- Здесь будут товары категории -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Товары будут отображаться здесь"
+                android:textColor="#80FFFFFF"
+                android:textSize="16sp"
+                android:gravity="center"
+                android:padding="40dp" />
+
+        </LinearLayout>
 
     </ScrollView>
 
-    <!-- Нижняя навигация -->
-    <include layout="@layout/bottom_navigation" />
+    <!-- Нижняя навигация С ID -->
+    <include
+        android:id="@+id/bottom_navigation"
+        layout="@layout/bottom_navigation" />
 
 </LinearLayout>
