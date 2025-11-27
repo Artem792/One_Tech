@@ -12,13 +12,14 @@ import androidx.appcompat.app.AppCompatActivity
 class CategoryActivity : AppCompatActivity() {
 
     private var isAdminMode = false
+    private var categoryName = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_category)
 
         // Получаем данные из Intent
-        val categoryName = intent.getStringExtra("category_name") ?: "Категория"
+        categoryName = intent.getStringExtra("category_name") ?: "Категория"
         val categoryIcon = intent.getStringExtra("category_icon") ?: "📦"
         isAdminMode = intent.getBooleanExtra("admin_mode", false)
 
@@ -62,14 +63,26 @@ class CategoryActivity : AppCompatActivity() {
         val bottomNavigation = findViewById<LinearLayout>(R.id.bottom_navigation)
         bottomNavigation?.visibility = View.GONE
 
-        // Скрываем кнопку ИИ-помощника
+        // Скрываем кнопку ИИ-помощника и ПОКАЗЫВАЕМ кнопку добавления
         val aiAssistantButton = findViewById<TextView>(R.id.aiAssistantButton)
+        val addProductButton = findViewById<TextView>(R.id.addProductButton)
+
         aiAssistantButton?.visibility = View.GONE
+        addProductButton?.visibility = View.VISIBLE
+
+        // Настраиваем обработчик кнопки добавления
+        addProductButton?.setOnClickListener {
+            openAddProductActivity()
+        }
     }
 
     private fun setupNormalUserMode() {
         setupClickListeners()
         setupAiAssistantButton()
+
+        // Скрываем кнопку добавления для обычных пользователей
+        val addProductButton = findViewById<TextView>(R.id.addProductButton)
+        addProductButton?.visibility = View.GONE
     }
 
     private fun setupCategoryTitle(categoryName: String) {
@@ -127,6 +140,24 @@ class CategoryActivity : AppCompatActivity() {
         aiAssistantButton?.setOnClickListener {
             val intent = Intent(this, AiAssistantActivity::class.java)
             startActivity(intent)
+        }
+    }
+
+    private fun openAddProductActivity() {
+        try {
+            println("DEBUG: Открываем AddProductActivity для категории: $categoryName")
+
+            val intent = Intent(this, AddProductActivity::class.java).apply {
+                putExtra("category_name", categoryName)
+                putExtra("admin_mode", true)
+            }
+            startActivity(intent)
+
+
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Ошибка открытия формы добавления: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
         }
     }
 }

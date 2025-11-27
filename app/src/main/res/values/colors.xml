@@ -4,7 +4,9 @@
     <color name="white">#FFFFFFFF</color>
     <color name="gray">#FF9E9E9E</color>
     <color name="gray_light">#FFE0E0E0</color>
-
+    <color name="field_stroke_color">#757575</color>
+    <color name="field_hint_color">#757575</color>
+    <color name="field_text_color">#FFFFFF</color>
     <!-- Для Bottom Navigation -->
     <color name="bottom_nav_color">#FF000000</color>
 </resources>

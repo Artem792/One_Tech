@@ -40,7 +40,23 @@
 
         </LinearLayout>
 
-        <!-- Кнопка ИИ-помощник с закругленными углами -->
+        <!-- Кнопка добавления товара (только для админа) -->
+        <TextView
+            android:id="@+id/addProductButton"
+            android:layout_width="wrap_content"
+            android:layout_height="45dp"
+            android:text="ДОБАВИТЬ"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:background="@drawable/round_button"
+            android:gravity="center"
+            android:paddingHorizontal="20dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Кнопка ИИ-помощник -->
         <TextView
             android:id="@+id/aiAssistantButton"
             android:layout_width="wrap_content"
