@@ -58,11 +58,30 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
 
+    // RecyclerView для списков
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // Lifecycle для ViewModel/LiveData (если понадобится)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+    // Glide для загрузки изображений
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    // Navigation Component (опционально, для улучшенной навигации)
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.5")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.5")
 
     // Тестовые зависимости
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Retrofit для API (если будете подключать платежи)
+    // implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    // implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }

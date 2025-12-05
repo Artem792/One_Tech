@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <gradient
+        android:angle="135"
+        android:startColor="#000000"
+        android:centerColor="#0A1A2A"
+        android:endColor="#000000"
+        android:type="linear" />
+
+    <!-- Эффект звездного неба (опционально) -->
+    <!-- <stroke
+        android:width="0dp"
+        android:color="#00000000" /> -->
+
+</shape>

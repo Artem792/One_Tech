@@ -2,6 +2,11 @@ package com.example.one_tech
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
@@ -12,13 +17,26 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var auth: FirebaseAuth
     private val db = Firebase.firestore
+    private val SPLASH_DELAY = 2000L // 2 секунды задержки
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Показываем загрузочный экран
+        showSplashScreen()
+
+        // Инициализируем Firebase
         auth = Firebase.auth
-        checkUserAuthentication()
+    }
+
+    private fun showSplashScreen() {
+        // Весь контент уже в layout
+        // Просто ждем 2 секунды и проверяем аутентификацию
+        handler.postDelayed({
+            checkUserAuthentication()
+        }, SPLASH_DELAY)
     }
 
     private fun checkUserAuthentication() {
@@ -70,5 +88,11 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, LoginActivity::class.java)
         startActivity(intent)
         finish()
+    }
+
+    override fun onDestroy() {
+        // Очищаем Handler чтобы избежать утечек памяти
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 }

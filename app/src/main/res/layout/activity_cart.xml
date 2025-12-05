@@ -28,16 +28,78 @@
 
     </LinearLayout>
 
-    <!-- Контент корзины -->
-    <ScrollView
+    <!-- Прогресс-бар загрузки -->
+    <LinearLayout
+        android:id="@+id/loadingLayout"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="20dp">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <!-- ... контент корзины ... -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Загрузка корзины..."
+            android:textColor="#80FFFFFF"
+            android:textSize="16sp" />
 
-    </ScrollView>
+    </LinearLayout>
+
+    <!-- Сообщение при пустой корзине -->
+    <TextView
+        android:id="@+id/emptyStateText"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="Корзина пуста"
+        android:textColor="#80FFFFFF"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="40dp"
+        android:visibility="gone" />
+
+    <!-- Список товаров в корзине -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/cartRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_margin="8dp"
+        android:padding="8dp" />
+
+    <!-- Панель итого и оформления -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1AFFFFFF"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/totalPriceText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Итого: 0 ₽"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="12dp" />
+
+        <Button
+            android:id="@+id/checkoutButton"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:backgroundTint="#4169E1"
+            android:elevation="8dp"
+            android:text="ОФОРМИТЬ ЗАКАЗ"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
 
     <!-- Нижняя навигация -->
     <include layout="@layout/bottom_navigation" />

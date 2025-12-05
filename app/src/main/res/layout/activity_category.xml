@@ -61,31 +61,67 @@
 
     </LinearLayout>
 
-    <!-- Контент -->
-    <ScrollView
+    <!-- Кнопка добавления товара (только для админа) -->
+    <Button
+        android:id="@+id/addProductButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="➕ Добавить товар"
+        android:backgroundTint="#4169E1"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone" />
+
+    <!-- Прогресс-бар загрузки -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="50dp"
+        android:visibility="gone" />
+
+    <!-- Сообщение при пустом списке -->
+    <TextView
+        android:id="@+id/emptyStateText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="В этой категории пока нет товаров"
+        android:textColor="#80FFFFFF"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:padding="40dp"
+        android:visibility="gone" />
+
+    <!-- Список товаров - RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/productsRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="20dp">
+        android:layout_margin="8dp"
+        android:padding="8dp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Здесь будут товары категории -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Товары будут отображаться здесь"
-                android:textColor="#80FFFFFF"
-                android:textSize="16sp"
-                android:gravity="center"
-                android:padding="40dp" />
-
-        </LinearLayout>
-
-    </ScrollView>
+    <!-- Кнопка ИИ-помощника (только для пользователей) -->
+    <TextView
+        android:id="@+id/aiAssistantButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🤖 ИИ-помощник"
+        android:textColor="#4169E1"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:background="@drawable/button_background"
+        android:padding="12dp"
+        android:layout_gravity="end"
+        android:layout_margin="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
 
     <!-- Нижняя навигация С ID -->
     <include

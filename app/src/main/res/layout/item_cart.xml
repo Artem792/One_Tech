@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/gray_rounded_background"
+    android:layout_margin="8dp"
+    android:padding="16dp">
+
+    <!-- Фото товара -->
+    <ImageView
+        android:id="@+id/productImage"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:scaleType="centerCrop"
+        android:background="#1AFFFFFF"
+        android:src="@drawable/placeholder_image"
+        android:contentDescription="Фото товара"
+        android:layout_marginEnd="16dp" />
+
+    <!-- Информация о товаре -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Название товара -->
+        <TextView
+            android:id="@+id/productName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Название товара"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingBottom="4dp" />
+
+        <!-- Цена за единицу -->
+        <TextView
+            android:id="@+id/productPrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0 ₽"
+            android:textColor="#80FFFFFF"
+            android:textSize="14sp"
+            android:paddingBottom="8dp" />
+
+        <!-- Управление количеством -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Кнопка уменьшения -->
+            <TextView
+                android:id="@+id/decreaseButton"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="-"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="#334169E1"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <!-- Количество -->
+            <TextView
+                android:id="@+id/quantityText"
+                android:layout_width="40dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="1"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Кнопка увеличения -->
+            <TextView
+                android:id="@+id/increaseButton"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:gravity="center"
+                android:text="+"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:background="#334169E1"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <!-- Общая цена -->
+            <TextView
+                android:id="@+id/totalPriceText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="0 ₽"
+                android:textColor="#4169E1"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:gravity="end" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Кнопка удаления -->
+    <TextView
+        android:id="@+id/removeButton"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="×"
+        android:textColor="#FF4444"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_marginStart="8dp" />
+
+</LinearLayout>
