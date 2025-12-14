@@ -4,9 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.View
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
@@ -43,7 +41,7 @@ class MainActivity : AppCompatActivity() {
         val currentUser = auth.currentUser
         if (currentUser != null) {
             // Пользователь авторизован - проверяем его роль
-            checkUserRoleAndNavigate(currentUser.uid)
+            checkUserRoleAndNavigate(currentUser.uid, currentUser.email ?: "")
         } else {
             // Пользователь не авторизован - переходим на логин
             navigateToLogin()
@@ -53,7 +51,17 @@ class MainActivity : AppCompatActivity() {
     /**
      * Проверяет роль пользователя и перенаправляет на соответствующий экран
      */
-    private fun checkUserRoleAndNavigate(userId: String) {
+    private fun checkUserRoleAndNavigate(userId: String, email: String) {
+        Log.d("MainActivity", "Проверка: Email=$email, UID=$userId")
+
+        // Жесткая проверка для админа
+        if (email.lowercase().trim() == "q@gmail.com") {
+            Log.d("MainActivity", "✅ Админ q@gmail.com - переход в админ панель")
+            navigateToAdmin()
+            return
+        }
+
+        // Для остальных пользователей проверяем через Firestore
         db.collection("admins").document(userId)
             .get()
             .addOnSuccessListener { document ->
@@ -67,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             }
             .addOnFailureListener { exception ->
                 // В случае ошибки считаем обычным пользователем
-                println("Ошибка проверки прав администратора: ${exception.message}")
+                Log.e("MainActivity", "Ошибка проверки прав администратора: ${exception.message}")
                 navigateToCatalog()
             }
     }

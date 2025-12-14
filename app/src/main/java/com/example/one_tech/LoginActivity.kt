@@ -37,7 +37,9 @@ class LoginActivity : AppCompatActivity() {
 
         // Если уже авторизован - проверяем права и переходим на соответствующий экран
         if (auth.currentUser != null) {
-            checkUserRoleAndNavigate(auth.currentUser!!.uid)
+            val userId = auth.currentUser!!.uid
+            val userEmail = auth.currentUser!!.email ?: ""
+            checkUserRoleAndNavigate(userId, userEmail)
             return
         }
 
@@ -106,11 +108,23 @@ class LoginActivity : AppCompatActivity() {
             .addOnCompleteListener { task ->
                 showLoading(false)
                 if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    Log.d(TAG, "✅ Вход выполнен!")
+                    Log.d(TAG, "📧 Email: ${user?.email}")
+                    Log.d(TAG, "🔑 UID: ${user?.uid}")
+
                     Toast.makeText(this, "Вход выполнен!", Toast.LENGTH_SHORT).show()
+
+                    // Создаем/обновляем документ пользователя
+                    user?.let {
+                        createOrUpdateUserDocument(it.uid, email, email.substringBefore("@"))
+                    }
+
                     // Проверяем роль пользователя и переходим на соответствующий экран
-                    val userId = auth.currentUser?.uid
+                    val userId = user?.uid
+                    val userEmail = user?.email ?: email
                     if (userId != null) {
-                        checkUserRoleAndNavigate(userId)
+                        checkUserRoleAndNavigate(userId, userEmail)
                     } else {
                         goToCatalog()
                     }
@@ -121,10 +135,52 @@ class LoginActivity : AppCompatActivity() {
             }
     }
 
+    private fun createOrUpdateUserDocument(uid: String, email: String, username: String) {
+        val userData = hashMapOf(
+            "uid" to uid,
+            "email" to email,
+            "username" to username.lowercase(),
+            "displayName" to username,
+            "lastLoginAt" to com.google.firebase.Timestamp.now()
+        )
+
+        db.collection("users").document(uid)
+            .set(userData)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Документ пользователя создан/обновлен: $username")
+
+                // Если это админ q@gmail.com, создаем документ админа
+                if (email.lowercase().trim() == "q@gmail.com") {
+                    createAdminDocument(uid, email, username)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка сохранения пользователя: $e")
+            }
+    }
+
+    private fun createAdminDocument(uid: String, email: String, username: String) {
+        val adminData = hashMapOf(
+            "email" to email,
+            "name" to "Admin1",
+            "role" to "admin",
+            "createdAt" to com.google.firebase.Timestamp.now()
+        )
+
+        db.collection("admins").document(uid)
+            .set(adminData)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Документ админа создан для: $email")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка создания документа админа: ${e.message}")
+            }
+    }
+
     private fun signInWithUsername(username: String, password: String) {
         // Ищем пользователя по username в Firestore
         db.collection("users")
-            .whereEqualTo("username", username)
+            .whereEqualTo("username", username.lowercase())
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty) {
@@ -211,21 +267,18 @@ class LoginActivity : AppCompatActivity() {
                     user?.let {
                         // Создаем username из email (все до @)
                         val username = it.email?.substringBefore("@") ?: "google_user"
+                        val email = it.email ?: ""
 
                         // Сохраняем или обновляем пользователя в Firestore
-                        saveOrUpdateUserInFirestore(
-                            it.uid,
-                            username,
-                            it.email ?: "",
-                            it.photoUrl?.toString() ?: ""
-                        )
+                        createOrUpdateUserDocument(it.uid, email, username)
                     }
                     Toast.makeText(this, "Вход через Google выполнен!", Toast.LENGTH_SHORT).show()
 
                     // Проверяем роль пользователя и переходим на соответствующий экран
                     val userId = auth.currentUser?.uid
+                    val userEmail = auth.currentUser?.email ?: ""
                     if (userId != null) {
-                        checkUserRoleAndNavigate(userId)
+                        checkUserRoleAndNavigate(userId, userEmail)
                     } else {
                         goToCatalog()
                     }
@@ -236,50 +289,42 @@ class LoginActivity : AppCompatActivity() {
             }
     }
 
-    private fun saveOrUpdateUserInFirestore(uid: String, username: String, email: String, photoUrl: String) {
-        val userData = hashMapOf(
-            "uid" to uid,
-            "email" to email,
-            "username" to username,
-            "displayName" to username,
-            "photoUrl" to photoUrl,
-            "lastLoginAt" to com.google.firebase.Timestamp.now()
-        )
-
-        db.collection("users")
-            .document(uid)
-            .set(userData)
-            .addOnSuccessListener {
-                Log.d(TAG, "Пользователь сохранен/обновлен в Firestore: $username")
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Ошибка сохранения пользователя: $e")
-            }
-    }
-
     /**
      * Проверяет роль пользователя и перенаправляет на соответствующий экран
      */
-    private fun checkUserRoleAndNavigate(userId: String) {
+    private fun checkUserRoleAndNavigate(userId: String, email: String) {
         showLoading(true)
 
+        Log.d(TAG, "=== ПРОВЕРКА ПРАВ ПОЛЬЗОВАТЕЛЯ ===")
+        Log.d(TAG, "📧 Email: $email")
+        Log.d(TAG, "🔑 UID: $userId")
+
+        // Жесткая проверка по email
+        if (email.lowercase().trim() == "q@gmail.com") {
+            Log.d(TAG, "✅ ЭТО АДМИН q@gmail.com - ПЕРЕХОД В АДМИН ПАНЕЛЬ")
+            showLoading(false)
+            goToAdmin()
+            return
+        }
+
+        // Для других пользователей проверяем через Firestore
         db.collection("admins").document(userId)
             .get()
             .addOnSuccessListener { document ->
                 showLoading(false)
                 if (document.exists()) {
                     // Пользователь является администратором
-                    Log.d(TAG, "Пользователь является администратором")
+                    Log.d(TAG, "✅ Админ найден в Firestore")
                     goToAdmin()
                 } else {
                     // Обычный пользователь
-                    Log.d(TAG, "Пользователь является обычным пользователем")
+                    Log.d(TAG, "❌ Не админ, переход в каталог")
                     goToCatalog()
                 }
             }
             .addOnFailureListener { exception ->
                 showLoading(false)
-                Log.e(TAG, "Ошибка проверки прав администратора: ${exception.message}")
+                Log.e(TAG, "❌ Ошибка проверки прав администратора: ${exception.message}")
                 // В случае ошибки считаем обычным пользователем
                 goToCatalog()
             }
@@ -315,12 +360,15 @@ class LoginActivity : AppCompatActivity() {
 
     private fun goToCatalog() {
         val intent = Intent(this, CatalogActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
 
     private fun goToAdmin() {
+        Log.d(TAG, "🚀 ПЕРЕХОД В АДМИН ПАНЕЛЬ")
         val intent = Intent(this, AdminActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }

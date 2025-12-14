@@ -2,9 +2,11 @@ package com.example.one_tech
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
@@ -14,122 +16,260 @@ class AdminActivity : AppCompatActivity() {
 
     private val auth = Firebase.auth
     private val db = Firebase.firestore
+    private val TAG = "AdminActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_admin)
 
-        // Проверяем, является ли пользователь админом
-        checkAdminAccess()
+        Log.d(TAG, "=== АДМИН ПАНЕЛЬ ЗАПУЩЕНА ===")
 
-        setupAdminFeatures()
-        loadAdminData()
+        // Настраиваем обработчик кнопки "Назад"
+        setupBackPressedHandler()
+
+        // Начинаем проверку и загрузку данных
+        initializeAdminPanel()
     }
 
-    private fun checkAdminAccess() {
+    private fun setupBackPressedHandler() {
+        // Современный способ обработки кнопки "Назад"
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // При нажатии "Назад" показываем сообщение
+                Toast.makeText(
+                    this@AdminActivity,
+                    "Нажмите 'Выйти' для выхода из админ панели",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+    }
+
+    private fun initializeAdminPanel() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            // Если пользователь не авторизован - на логин
+            Log.d(TAG, "❌ Пользователь не авторизован")
             goToLogin()
             return
         }
 
-        // Проверяем в Firestore, является ли пользователь админом
-        db.collection("admins").document(currentUser.uid)
-            .get()
-            .addOnSuccessListener { document ->
-                if (!document.exists()) {
-                    // Если не админ - возвращаем в каталог (обычный режим)
-                    Toast.makeText(this, "Доступ запрещен", Toast.LENGTH_SHORT).show()
-                    goToCatalog(false) // false = обычный режим
-                }
-                // Если админ - продолжаем работу (ничего не делаем)
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Ошибка проверки прав", Toast.LENGTH_SHORT).show()
-                goToCatalog(false) // false = обычный режим
-            }
-    }
+        val userId = currentUser.uid
+        val userEmail = currentUser.email ?: ""
 
-    private fun loadAdminData() {
-        val currentUser = auth.currentUser
-        currentUser?.let { user ->
-            // Загружаем данные админа из коллекции admins
-            db.collection("admins").document(user.uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        val adminName = document.getString("name") ?: "Администратор"
-                        val adminEmail = document.getString("email") ?: user.email ?: ""
+        Log.d(TAG, "🔍 Проверка пользователя: UID=$userId, Email=$userEmail")
 
-                        val adminNameText = findViewById<TextView>(R.id.adminNameText)
-                        val adminEmailText = findViewById<TextView>(R.id.adminEmailText)
-
-                        adminNameText.text = adminName
-                        adminEmailText.text = adminEmail
-                    } else {
-                        // Если данных нет в admins, используем данные из users
-                        loadUserDataAsFallback(user.uid)
-                    }
-                }
-                .addOnFailureListener {
-                    // В случае ошибки загружаем данные из users
-                    loadUserDataAsFallback(user.uid)
-                }
+        // Жесткая проверка для админа q@gmail.com
+        if (userEmail.lowercase().trim() == "q@gmail.com") {
+            Log.d(TAG, "✅ Обнаружен админ q@gmail.com")
+            // 1. Создаем/обновляем документ пользователя
+            createOrUpdateUserDocument(userId, userEmail, "Admin1")
+            // 2. Создаем/обновляем документ админа
+            createOrUpdateAdminDocument(userId, userEmail, "Admin1")
+            // 3. Загружаем данные и показываем UI
+            loadAdminData(userId, userEmail)
+            // 4. Настраиваем кнопки
+            setupAdminFeatures()
+            return
         }
+
+        // Для других пользователей проверяем через Firestore
+        checkAdminInFirestore(userId, userEmail)
     }
 
-    private fun loadUserDataAsFallback(userId: String) {
-        db.collection("users").document(userId)
+    private fun checkAdminInFirestore(userId: String, userEmail: String) {
+        db.collection("admins").document(userId)
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
-                    val username = document.getString("username") ?: "Администратор"
-                    val email = document.getString("email") ?: ""
-
-                    val adminNameText = findViewById<TextView>(R.id.adminNameText)
-                    val adminEmailText = findViewById<TextView>(R.id.adminEmailText)
-
-                    adminNameText.text = username
-                    adminEmailText.text = email
+                    Log.d(TAG, "✅ Админ найден в Firestore")
+                    loadAdminData(userId, userEmail)
+                    setupAdminFeatures()
+                } else {
+                    Log.d(TAG, "❌ Пользователь не является админом")
+                    Toast.makeText(this, "Доступ запрещен", Toast.LENGTH_SHORT).show()
+                    goToCatalog(false)
                 }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка проверки прав: ${e.message}")
+                Toast.makeText(this, "Ошибка проверки прав", Toast.LENGTH_SHORT).show()
+                goToCatalog(false)
             }
     }
 
+    private fun createOrUpdateUserDocument(userId: String, email: String, name: String) {
+        val userData = hashMapOf(
+            "uid" to userId,
+            "email" to email,
+            "username" to name.lowercase().replace(" ", "_"),
+            "displayName" to name,
+            "createdAt" to com.google.firebase.Timestamp.now(),
+            "lastLoginAt" to com.google.firebase.Timestamp.now(),
+            "isAdmin" to true
+        )
+
+        db.collection("users").document(userId)
+            .set(userData)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Документ пользователя создан/обновлен")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка создания документа пользователя: ${e.message}")
+            }
+    }
+
+    private fun createOrUpdateAdminDocument(userId: String, email: String, name: String) {
+        val adminData = hashMapOf(
+            "email" to email,
+            "name" to name,
+            "role" to "admin",
+            "createdAt" to com.google.firebase.Timestamp.now(),
+            "lastLogin" to com.google.firebase.Timestamp.now()
+        )
+
+        db.collection("admins").document(userId)
+            .set(adminData)
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Документ админа создан/обновлен")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка создания документа админа: ${e.message}")
+            }
+    }
+
+    private fun loadAdminData(userId: String, userEmail: String) {
+        Log.d(TAG, "📥 Загрузка данных админа...")
+
+        // Пробуем загрузить из коллекции admins
+        db.collection("admins").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    // Данные из admins
+                    val adminName = document.getString("name") ?: "Администратор"
+                    val adminEmail = document.getString("email") ?: userEmail
+
+                    Log.d(TAG, "✅ Данные из admins: $adminName ($adminEmail)")
+                    updateAdminUI(adminName, adminEmail)
+                } else {
+                    // Пробуем из users
+                    loadAdminDataFromUsers(userId, userEmail)
+                }
+            }
+            .addOnFailureListener {
+                // Пробуем из users
+                loadAdminDataFromUsers(userId, userEmail)
+            }
+    }
+
+    private fun loadAdminDataFromUsers(userId: String, userEmail: String) {
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                val adminName: String
+                val adminEmail: String
+
+                if (document.exists()) {
+                    adminName = document.getString("displayName") ?:
+                            document.getString("username") ?: "Администратор"
+                    adminEmail = document.getString("email") ?: userEmail
+                    Log.d(TAG, "✅ Данные из users: $adminName ($adminEmail)")
+                } else {
+                    // Используем данные из Auth
+                    adminName = if (userEmail == "q@gmail.com") "Admin1" else "Администратор"
+                    adminEmail = userEmail
+                    Log.d(TAG, "📥 Используем данные из Auth: $adminName ($adminEmail)")
+                }
+
+                updateAdminUI(adminName, adminEmail)
+            }
+            .addOnFailureListener {
+                // Используем данные из Auth
+                val adminName = if (userEmail == "q@gmail.com") "Admin1" else "Администратор"
+                updateAdminUI(adminName, userEmail)
+            }
+    }
+
+    private fun updateAdminUI(adminName: String, adminEmail: String) {
+        Log.d(TAG, "🎨 Обновление UI: Имя='$adminName', Email='$adminEmail'")
+
+        runOnUiThread {
+            try {
+                val adminNameText = findViewById<TextView>(R.id.adminNameText)
+                val adminEmailText = findViewById<TextView>(R.id.adminEmailText)
+                val adminAvatar = findViewById<TextView>(R.id.adminAvatar)
+
+                adminNameText.text = adminName
+                adminEmailText.text = adminEmail
+
+                // Устанавливаем первую букву имени в аватар (или эмодзи если пусто)
+                if (adminName.isNotEmpty()) {
+                    val firstChar = adminName.first()
+                    if (firstChar.isLetterOrDigit()) {
+                        adminAvatar.text = firstChar.toString().uppercase()
+                    } else {
+                        adminAvatar.text = "👨‍💼"
+                    }
+                } else {
+                    adminAvatar.text = "👨‍💼"
+                }
+
+                Log.d(TAG, "✅ UI успешно обновлен")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Ошибка обновления UI: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun setupAdminFeatures() {
-        // Кнопка управления товарами - переход в каталог в режиме админа
-        val manageProductsBtn: Button = findViewById(R.id.manageProductsBtn)
-        manageProductsBtn.setOnClickListener {
-            goToCatalog(true) // true = режим админа
-        }
+        Log.d(TAG, "⚙️ Настройка функций админ панели")
 
-        // Остальные кнопки остаются заглушками
-        val manageOrdersBtn: Button = findViewById(R.id.manageOrdersBtn)
-        manageOrdersBtn.setOnClickListener {
-            Toast.makeText(this, "Управление заказами - в разработке", Toast.LENGTH_SHORT).show()
-        }
+        runOnUiThread {
+            try {
+                // Кнопка управления товарами
+                findViewById<Button>(R.id.manageProductsBtn).setOnClickListener {
+                    goToCatalog(true)
+                }
 
-        val statisticsBtn: Button = findViewById(R.id.statisticsBtn)
-        statisticsBtn.setOnClickListener {
-            Toast.makeText(this, "Статистика - в разработке", Toast.LENGTH_SHORT).show()
-        }
+                // Кнопка управления заказами
+                findViewById<Button>(R.id.manageOrdersBtn).setOnClickListener {
+                    Toast.makeText(this, "Управление заказами - в разработке", Toast.LENGTH_SHORT).show()
+                }
 
-        val manageUsersBtn: Button = findViewById(R.id.manageUsersBtn)
-        manageUsersBtn.setOnClickListener {
-            Toast.makeText(this, "Управление пользователями - в разработке", Toast.LENGTH_SHORT).show()
-        }
+                // Кнопка статистики
+                findViewById<Button>(R.id.statisticsBtn).setOnClickListener {
+                    Toast.makeText(this, "Статистика - в разработке", Toast.LENGTH_SHORT).show()
+                }
 
-        // Кнопка выхода
-        val logoutButton: Button = findViewById(R.id.logoutButton)
-        logoutButton.setOnClickListener {
-            auth.signOut()
-            Toast.makeText(this, "Вы вышли из аккаунта", Toast.LENGTH_SHORT).show()
-            goToLogin()
+                // Кнопка управления пользователями
+                findViewById<Button>(R.id.manageUsersBtn).setOnClickListener {
+                    Toast.makeText(this, "Управление пользователей - в разработке", Toast.LENGTH_SHORT).show()
+                }
+
+                // Кнопка выхода
+                findViewById<Button>(R.id.logoutButton).setOnClickListener {
+                    auth.signOut()
+                    Toast.makeText(this, "Вы вышли из аккаунта", Toast.LENGTH_SHORT).show()
+                    goToLogin()
+                }
+
+                // Кнопка настроек (шестеренка)
+                findViewById<TextView>(R.id.settingsButton)?.setOnClickListener {
+                    Toast.makeText(this, "Настройки админа - в разработке", Toast.LENGTH_SHORT).show()
+                }
+
+                Log.d(TAG, "✅ Функции админ панели настроены")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Ошибка настройки функций: ${e.message}")
+                e.printStackTrace()
+            }
         }
     }
 
     private fun goToLogin() {
         val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
@@ -137,7 +277,10 @@ class AdminActivity : AppCompatActivity() {
     private fun goToCatalog(isAdminMode: Boolean) {
         val intent = Intent(this, CatalogActivity::class.java)
         intent.putExtra("admin_mode", isAdminMode)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
+
+    // Удален старый метод onBackPressed()
 }
