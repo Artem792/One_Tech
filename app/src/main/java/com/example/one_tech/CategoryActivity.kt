@@ -169,18 +169,21 @@ class CategoryActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        productsAdapter = ProductAdapter(emptyList(),
+        productsAdapter = ProductAdapter(
+            emptyList(),
+            isAdminMode = isAdminMode, // Передаем режим
             onItemClick = { product ->
-                if (isAdminMode) {
-                    // Редактирование товара для админа
-                    openEditProductActivity(product)
-                } else {
-                    // Просмотр товара для пользователя
-                    openProductDetailsActivity(product)
-                }
+                // ВСЕГДА открываем просмотр товара при клике на карточку
+                openProductDetailsActivity(product)
             },
             onAddToCartClick = { product ->
                 addToCart(product)
+            },
+            onEditClick = { product -> // Новый обработчик для кнопки редактирования (иконка ✏️)
+                openEditProductActivity(product)
+            },
+            onDeleteClick = { product -> // Новый обработчик для кнопки удаления (иконка 🗑️)
+                deleteProduct(product)
             }
         )
 
@@ -198,7 +201,6 @@ class CategoryActivity : AppCompatActivity() {
                 val productsList = mutableListOf<Product>()
                 for (document in documents) {
                     try {
-                        // Firebase автоматически заполнит поле id благодаря @DocumentId
                         val product = document.toObject(Product::class.java)
                         productsList.add(product)
                     } catch (e: Exception) {
@@ -250,14 +252,37 @@ class CategoryActivity : AppCompatActivity() {
     }
 
     private fun openEditProductActivity(product: Product) {
-        // TODO: Создать активность для редактирования товара
-        Toast.makeText(this, "Редактирование: ${product.name}", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, EditProductActivity::class.java).apply {
+            putExtra("product_id", product.id)
+            putExtra("category_name", categoryName)
+            putExtra("admin_mode", true)
+        }
+        startActivity(intent)
     }
 
     private fun openProductDetailsActivity(product: Product) {
         val intent = Intent(this, ProductDetailsActivity::class.java)
         intent.putExtra("product_id", product.id)
+        intent.putExtra("admin_mode", isAdminMode) // Важно передать режим админа!
         startActivity(intent)
+    }
+
+    // Новый метод для удаления товара
+    private fun deleteProduct(product: Product) {
+        if (product.id.isEmpty()) {
+            Toast.makeText(this, "Ошибка: ID товара не найден", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        db.collection("products").document(product.id)
+            .delete()
+            .addOnSuccessListener {
+                Toast.makeText(this, "✅ Товар удален!", Toast.LENGTH_SHORT).show()
+                loadProducts() // Обновляем список
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "❌ Ошибка удаления: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun addToCart(product: Product) {
