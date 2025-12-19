@@ -43,13 +43,16 @@ android {
 }
 
 dependencies {
-    // Firebase BOM (Bill of Materials)
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    // Firebase BOM (Bill of Materials) - обновленная версия
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
 
     // Firebase зависимости
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Firebase Storage для изображений
+    implementation("com.google.firebase:firebase-storage-ktx")
 
     // AndroidX зависимости из version catalog
     implementation(libs.androidx.core.ktx)
@@ -61,27 +64,54 @@ dependencies {
     // RecyclerView для списков
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
-    // Lifecycle для ViewModel/LiveData (если понадобится)
+    // CardView для карточек товаров
+    implementation("androidx.cardview:cardview:1.0.0")
+
+    // Lifecycle для ViewModel/LiveData
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-common-java8:2.7.0")
 
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:20.7.0")
 
+    // Material Design Components
+    implementation("com.google.android.material:material:1.12.0-alpha03")
+
     // Glide для загрузки изображений
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
-    // Navigation Component (опционально, для улучшенной навигации)
+    // Navigation Component
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.5")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.5")
+
+    // Room Database (опционально, для локального кэша)
+    implementation("androidx.room:room-runtime:2.6.0")
+    implementation("androidx.room:room-ktx:2.6.0")
+    annotationProcessor("androidx.room:room-compiler:2.6.0")
+
+    // Coroutines для асинхронных операций
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Preferences DataStore (для SharedPreferences)
+    implementation("androidx.datastore:datastore-preferences:1.1.0")
+
+    // WorkManager (для фоновых задач)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Тестовые зависимости
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.2")
 
-    // Retrofit для API (если будете подключать платежи)
-    // implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    // implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // Тестирование Firebase
+    androidTestImplementation("com.google.firebase:firebase-firestore:24.10.0")
+
+    // Тестирование Coroutines
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }

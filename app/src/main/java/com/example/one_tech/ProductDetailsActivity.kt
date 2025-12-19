@@ -1,5 +1,6 @@
 package com.example.one_tech
 
+import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
@@ -20,6 +21,7 @@ class ProductDetailsActivity : AppCompatActivity() {
     private lateinit var product: Product
     private val db = Firebase.firestore
     private val auth = Firebase.auth
+    private var isAdminMode = false
 
     // Views
     private lateinit var productImage: ImageView
@@ -28,17 +30,27 @@ class ProductDetailsActivity : AppCompatActivity() {
     private lateinit var productDescription: TextView
     private lateinit var inStockText: TextView
     private lateinit var addToCartButton: Button
+    private lateinit var editButton: Button
     private lateinit var specsContainer: LinearLayout
     private lateinit var progressBar: ProgressBar
     private lateinit var backButton: TextView
-    private lateinit var aiAssistantButton: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_product_details)
 
+        // Получаем флаг режима админа из Intent
+        isAdminMode = intent.getBooleanExtra("admin_mode", false)
+
         initViews()
         setupClickListeners()
+
+        // Настраиваем интерфейс в зависимости от режима
+        if (isAdminMode) {
+            setupAdminMode()
+        } else {
+            setupUserMode()
+        }
 
         // Получаем productId из Intent
         val productId = intent.getStringExtra("product_id")
@@ -58,10 +70,23 @@ class ProductDetailsActivity : AppCompatActivity() {
         productDescription = findViewById(R.id.productDescription)
         inStockText = findViewById(R.id.inStockText)
         addToCartButton = findViewById(R.id.addToCartButton)
+        editButton = findViewById(R.id.editButton)
         specsContainer = findViewById(R.id.specsContainer)
         progressBar = findViewById(R.id.progressBar)
         backButton = findViewById(R.id.backButton)
-        aiAssistantButton = findViewById(R.id.aiAssistantButton)
+    }
+
+    private fun setupAdminMode() {
+        // Для админа: показываем кнопку редактирования, скрываем кнопку корзины
+        addToCartButton.visibility = View.GONE
+        editButton.visibility = View.VISIBLE
+        editButton.text = "РЕДАКТИРОВАТЬ ТОВАР"
+    }
+
+    private fun setupUserMode() {
+        // Для пользователя: показываем кнопку корзины, скрываем кнопку редактирования
+        addToCartButton.visibility = View.VISIBLE
+        editButton.visibility = View.GONE
     }
 
     private fun setupClickListeners() {
@@ -69,12 +94,20 @@ class ProductDetailsActivity : AppCompatActivity() {
             finish()
         }
 
-        aiAssistantButton.setOnClickListener {
-            Toast.makeText(this, "ИИ-помощник откроется здесь", Toast.LENGTH_SHORT).show()
-        }
-
+        // Обработчик кнопки добавления в корзину (только для пользователей)
         addToCartButton.setOnClickListener {
             addToCart()
+        }
+
+        // Обработчик кнопки редактирования (только для админов)
+        editButton.setOnClickListener {
+            // Переход в режим редактирования
+            val intent = Intent(this, EditProductActivity::class.java).apply {
+                putExtra("product_id", product.id)
+                putExtra("category_name", product.category)
+                putExtra("admin_mode", true)
+            }
+            startActivity(intent)
         }
     }
 
@@ -121,7 +154,7 @@ class ProductDetailsActivity : AppCompatActivity() {
             productImage.setImageResource(R.drawable.placeholder_image)
         }
 
-        // Отображение всей информации в одном блоке
+        // Отображение всей информации
         displayAllInformation()
     }
 

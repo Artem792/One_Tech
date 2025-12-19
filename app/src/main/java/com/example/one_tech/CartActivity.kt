@@ -8,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -161,11 +162,53 @@ class CartActivity : AppCompatActivity() {
             return
         }
 
+        // Проверяем, является ли пользователь гостем
+        db.collection("users").document(currentUser.uid)
+            .get()
+            .addOnSuccessListener { document ->
+                val isGuest = document.getBoolean("isGuest") ?: false
+
+                if (isGuest) {
+                    // Гость не может оформлять заказы - показываем диалог
+                    showGuestCannotOrderDialog(currentUser.uid)
+                } else {
+                    // Обычный пользователь - оформляем заказ
+                    proceedWithOrder(currentUser.uid)
+                }
+            }
+            .addOnFailureListener {
+                // При ошибке считаем обычным пользователем
+                proceedWithOrder(currentUser.uid)
+            }
+    }
+
+    private fun showGuestCannotOrderDialog(userId: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Оформление заказа")
+            .setMessage("Гостевой режим позволяет только добавлять товары в корзину. Для оформления заказа зарегистрируйтесь.")
+            .setPositiveButton("Зарегистрироваться") { dialog, _ ->
+                dialog.dismiss()
+                // Переход на регистрацию
+                val intent = Intent(this, RegisterActivity::class.java)
+                startActivity(intent)
+            }
+            .setNegativeButton("Продолжить как гость") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNeutralButton("Отмена") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(true)
+            .create()
+            .show()
+    }
+
+    private fun proceedWithOrder(userId: String) {
         showLoading(true)
 
         // Получаем все товары из корзины пользователя
         db.collection("cart")
-            .whereEqualTo("userId", currentUser.uid)
+            .whereEqualTo("userId", userId)
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty) {
@@ -174,22 +217,56 @@ class CartActivity : AppCompatActivity() {
                     return@addOnSuccessListener
                 }
 
-                // Удаляем все товары из корзины
-                val batch = db.batch()
+                // Создаем заказ
+                val orderItems = mutableListOf<Map<String, Any>>()
+                var totalAmount = 0.0
+
                 for (document in documents) {
-                    batch.delete(document.reference)
+                    val item = hashMapOf<String, Any>(
+                        "productId" to (document.getString("productId") ?: ""),
+                        "productName" to (document.getString("productName") ?: ""),
+                        "quantity" to (document.getLong("quantity") ?: 1),
+                        "price" to (document.getDouble("productPrice") ?: 0.0)
+                    )
+                    orderItems.add(item)
+                    totalAmount += (document.getDouble("productPrice") ?: 0.0) * (document.getLong("quantity")?.toInt() ?: 1)
                 }
 
-                batch.commit()
-                    .addOnSuccessListener {
-                        showLoading(false)
-                        Log.d(TAG, "✅ Заказ оформлен! Товары удалены из корзины")
-                        Toast.makeText(this, "✅ Заказ успешно оформлен! Товары удалены из корзины", Toast.LENGTH_LONG).show()
-                        loadCartItems() // Обновляем интерфейс
+                // Создаем документ заказа
+                val orderData = hashMapOf<String, Any>(
+                    "userId" to userId,
+                    "items" to orderItems,
+                    "totalAmount" to totalAmount,
+                    "status" to "pending",
+                    "createdAt" to com.google.firebase.Timestamp.now()
+                )
+
+                // Сохраняем заказ
+                db.collection("orders")
+                    .add(orderData)
+                    .addOnSuccessListener { orderDoc ->
+                        // Удаляем все товары из корзины
+                        val batch = db.batch()
+                        for (document in documents) {
+                            batch.delete(document.reference)
+                        }
+
+                        batch.commit()
+                            .addOnSuccessListener {
+                                showLoading(false)
+                                Log.d(TAG, "✅ Заказ оформлен! ID: ${orderDoc.id}")
+                                Toast.makeText(this, "✅ Заказ успешно оформлен!", Toast.LENGTH_LONG).show()
+                                loadCartItems() // Обновляем интерфейс
+                            }
+                            .addOnFailureListener { e ->
+                                showLoading(false)
+                                Log.e(TAG, "❌ Ошибка очистки корзины: ${e.message}")
+                                Toast.makeText(this, "❌ Ошибка очистки корзины: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
                     }
                     .addOnFailureListener { e ->
                         showLoading(false)
-                        Log.e(TAG, "❌ Ошибка оформления заказа: ${e.message}")
+                        Log.e(TAG, "❌ Ошибка создания заказа: ${e.message}")
                         Toast.makeText(this, "❌ Ошибка оформления заказа: ${e.message}", Toast.LENGTH_LONG).show()
                     }
             }
@@ -247,7 +324,7 @@ class CartActivity : AppCompatActivity() {
 
     private fun setupAiAssistantButton() {
         val aiAssistantButton = findViewById<TextView>(R.id.aiAssistantButton)
-        aiAssistantButton.setOnClickListener {
+        aiAssistantButton?.setOnClickListener {
             val intent = Intent(this, AiAssistantActivity::class.java)
             startActivity(intent)
         }

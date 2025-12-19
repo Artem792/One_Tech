@@ -4,8 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -25,6 +27,8 @@ class LoginActivity : AppCompatActivity() {
     private val db = Firebase.firestore
     private val RC_SIGN_IN = 9001
     private val TAG = "LoginActivity"
+    private val SHARED_PREFS = "guest_prefs"
+    private val IS_FIRST_GUEST_LOGIN = "is_first_guest_login"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,6 +69,8 @@ class LoginActivity : AppCompatActivity() {
         val loginButton: Button = findViewById(R.id.loginButton)
         val registerLink: TextView = findViewById(R.id.registerLink)
         val googleSignInButton: Button = findViewById(R.id.googleSignInButton)
+        val forgotPasswordLink: TextView = findViewById(R.id.forgotPasswordLink)
+        val guestLoginButton: Button = findViewById(R.id.guestLoginButton)
 
         loginButton.setOnClickListener {
             performLogin()
@@ -78,6 +84,174 @@ class LoginActivity : AppCompatActivity() {
         googleSignInButton.setOnClickListener {
             signInWithGoogle()
         }
+
+        forgotPasswordLink.setOnClickListener {
+            showForgotPasswordDialog()
+        }
+
+        guestLoginButton.setOnClickListener {
+            loginAsGuest()
+        }
+    }
+
+    private fun showForgotPasswordDialog() {
+        val emailInput: TextInputEditText = findViewById(R.id.emailInput)
+        val userInput = emailInput.text.toString().trim()
+
+        if (userInput.isEmpty()) {
+            // Если поле пустое - показываем диалог
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("Восстановление пароля")
+            builder.setMessage("Введите ваш email для восстановления пароля:")
+
+            val input = EditText(this)
+            input.hint = "email@example.com"
+            input.setTextColor(resources.getColor(android.R.color.black, theme))
+            input.setHintTextColor(resources.getColor(android.R.color.black, theme))
+            input.setBackgroundColor(0x1AFFFFFF)
+            builder.setView(input)
+
+            builder.setPositiveButton("Отправить") { dialog, _ ->
+                val email = input.text.toString().trim()
+                if (email.isNotEmpty() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    sendPasswordResetEmail(email)
+                } else {
+                    Toast.makeText(this, "Введите корректный email", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+
+            builder.setNegativeButton("Отмена") { dialog, _ ->
+                dialog.dismiss()
+            }
+
+            builder.create().show()
+        } else {
+            // Если поле заполнено - проверяем что это
+            if (android.util.Patterns.EMAIL_ADDRESS.matcher(userInput).matches()) {
+                // Это email
+                sendPasswordResetEmail(userInput)
+            } else {
+                // Это логин - ищем email в Firestore
+                findEmailByUsername(userInput)
+            }
+        }
+    }
+
+    private fun findEmailByUsername(username: String) {
+        showLoading(true)
+
+        db.collection("users")
+            .whereEqualTo("username", username.lowercase())
+            .get()
+            .addOnSuccessListener { documents ->
+                showLoading(false)
+                if (documents.isEmpty) {
+                    Toast.makeText(this, "Пользователь с таким логином не найден", Toast.LENGTH_LONG).show()
+                    return@addOnSuccessListener
+                }
+
+                // Берем первый документ (username должен быть уникальным)
+                val document = documents.documents[0]
+                val email = document.getString("email") ?: ""
+
+                if (email.isEmpty()) {
+                    Toast.makeText(this, "Email не найден для этого пользователя", Toast.LENGTH_LONG).show()
+                    return@addOnSuccessListener
+                }
+
+                sendPasswordResetEmail(email)
+            }
+            .addOnFailureListener { exception ->
+                showLoading(false)
+                Toast.makeText(this, "Ошибка поиска пользователя", Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Ошибка поиска email: ${exception.message}")
+            }
+    }
+
+    private fun sendPasswordResetEmail(email: String) {
+        showLoading(true)
+
+        auth.sendPasswordResetEmail(email)
+            .addOnCompleteListener { task ->
+                showLoading(false)
+                if (task.isSuccessful) {
+                    Toast.makeText(
+                        this,
+                        "Письмо для сброса пароля отправлено на $email",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    Log.d(TAG, "Письмо для сброса пароля отправлено на: $email")
+                } else {
+                    val errorMsg = when {
+                        task.exception?.message?.contains("invalid-email") == true ->
+                            "Некорректный email адрес"
+                        task.exception?.message?.contains("user-not-found") == true ->
+                            "Пользователь с таким email не найден"
+                        else -> "Ошибка отправки: ${task.exception?.message}"
+                    }
+                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                    Log.e(TAG, "Ошибка отправки письма: ${task.exception?.message}")
+                }
+            }
+    }
+
+    private fun loginAsGuest() {
+        showLoading(true)
+
+        auth.signInAnonymously()
+            .addOnCompleteListener(this) { task ->
+                showLoading(false)
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    Log.d(TAG, "✅ Гостевой вход выполнен! UID: ${user?.uid}")
+
+                    // Создаем/обновляем документ гостя в Firestore
+                    user?.let { guestUser ->
+                        val guestData = hashMapOf(
+                            "uid" to guestUser.uid,
+                            "isGuest" to true,
+                            "createdAt" to com.google.firebase.Timestamp.now(),
+                            "lastLoginAt" to com.google.firebase.Timestamp.now(),
+                            "displayName" to "Гость",
+                            "email" to "guest@example.com"
+                        )
+
+                        db.collection("users").document(guestUser.uid)
+                            .set(guestData)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "✅ Документ гостя создан/обновлен")
+
+                                // Сохраняем флаг первого входа гостя
+                                val sharedPref = getSharedPreferences(SHARED_PREFS, MODE_PRIVATE)
+                                with(sharedPref.edit()) {
+                                    putBoolean(IS_FIRST_GUEST_LOGIN, true)
+                                    apply()
+                                }
+
+                                Toast.makeText(this, "Вы вошли как гость", Toast.LENGTH_SHORT).show()
+
+                                // Переходим в каталог (не админ режим)
+                                val intent = Intent(this, CatalogActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                startActivity(intent)
+                                finish()
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e(TAG, "❌ Ошибка создания документа гостя: ${e.message}")
+                                // Все равно переходим, даже если Firestore ошибся
+                                goToCatalog()
+                            }
+                    }
+                } else {
+                    Log.e(TAG, "❌ Ошибка гостевого входа: ${task.exception?.message}")
+                    Toast.makeText(
+                        this,
+                        "Ошибка гостевого входа: ${task.exception?.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
     }
 
     private fun performLogin() {
@@ -117,7 +291,8 @@ class LoginActivity : AppCompatActivity() {
 
                     // Создаем/обновляем документ пользователя
                     user?.let {
-                        createOrUpdateUserDocument(it.uid, email, email.substringBefore("@"))
+                        val username = email.substringBefore("@")
+                        createOrUpdateUserDocument(it.uid, email, username)
                     }
 
                     // Проверяем роль пользователя и переходим на соответствующий экран
@@ -141,7 +316,8 @@ class LoginActivity : AppCompatActivity() {
             "email" to email,
             "username" to username.lowercase(),
             "displayName" to username,
-            "lastLoginAt" to com.google.firebase.Timestamp.now()
+            "lastLoginAt" to com.google.firebase.Timestamp.now(),
+            "isGuest" to false
         )
 
         db.collection("users").document(uid)
@@ -299,6 +475,27 @@ class LoginActivity : AppCompatActivity() {
         Log.d(TAG, "📧 Email: $email")
         Log.d(TAG, "🔑 UID: $userId")
 
+        // Проверяем, не гость ли это
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists() && document.getBoolean("isGuest") == true) {
+                    // Это гость - идем в каталог
+                    Log.d(TAG, "✅ Обнаружен гость - переход в каталог")
+                    showLoading(false)
+                    goToCatalog()
+                } else {
+                    // Не гость - проверяем на админа
+                    continueRoleCheck(userId, email)
+                }
+            }
+            .addOnFailureListener {
+                // Если ошибка - продолжаем обычную проверку
+                continueRoleCheck(userId, email)
+            }
+    }
+
+    private fun continueRoleCheck(userId: String, email: String) {
         // Жесткая проверка по email
         if (email.lowercase().trim() == "q@gmail.com") {
             Log.d(TAG, "✅ ЭТО АДМИН q@gmail.com - ПЕРЕХОД В АДМИН ПАНЕЛЬ")
@@ -352,10 +549,13 @@ class LoginActivity : AppCompatActivity() {
     private fun showLoading(isLoading: Boolean) {
         val loginButton: Button = findViewById(R.id.loginButton)
         val googleSignInButton: Button = findViewById(R.id.googleSignInButton)
+        val guestLoginButton: Button = findViewById(R.id.guestLoginButton)
 
         loginButton.isEnabled = !isLoading
         googleSignInButton.isEnabled = !isLoading
+        guestLoginButton.isEnabled = !isLoading
         loginButton.text = if (isLoading) "ВХОД..." else "ВОЙТИ"
+        guestLoginButton.text = if (isLoading) "ВХОД..." else "ВОЙТИ КАК ГОСТЬ"
     }
 
     private fun goToCatalog() {

@@ -1,13 +1,15 @@
 package com.example.one_tech
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
+import android.view.WindowManager
+import android.widget.*
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -29,36 +31,35 @@ class CategoryActivity : AppCompatActivity() {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
 
+    private var currentFilters = FilterData()
+    private var allProducts = mutableListOf<Product>()
+    private var manufacturers = mutableListOf<String>()
+    private var categoryFilterOptions = listOf<CategoryFilterOption>()
+
+    // Для хранения состояния аккордеона (какие открыты)
+    private val expandedFilters = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_category)
 
-        // Получаем данные из Intent
         categoryName = intent.getStringExtra("category_name") ?: "Категория"
         isAdminMode = intent.getBooleanExtra("admin_mode", false)
 
-        // Инициализация Views
         initViews()
-
-        // Настраиваем обработчик кнопки "Назад"
         setupBackPressedHandler()
-
-        // Устанавливаем заголовок категории
         setupCategoryTitle(categoryName)
         setupBackButton()
         setupFilterButton()
-
-        // Настраиваем RecyclerView
         setupRecyclerView()
 
-        // Настраиваем интерфейс в зависимости от режима
         if (isAdminMode) {
             setupAdminMode()
         } else {
             setupNormalUserMode()
         }
 
-        // Загружаем товары
+        loadCategoryFilters()
         loadProducts()
     }
 
@@ -75,13 +76,11 @@ class CategoryActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (isAdminMode) {
-                    // Если это режим админа - возвращаемся в админ каталог
                     val intent = Intent(this@CategoryActivity, CatalogActivity::class.java)
                     intent.putExtra("admin_mode", true)
                     startActivity(intent)
                     finish()
                 } else {
-                    // Для обычных пользователей - стандартное поведение
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
                 }
@@ -90,14 +89,10 @@ class CategoryActivity : AppCompatActivity() {
     }
 
     private fun setupAdminMode() {
-        // Скрываем нижнюю навигацию
         bottomNavigation.visibility = View.GONE
-
-        // Скрываем кнопку ИИ-помощника и ПОКАЗЫВАЕМ кнопку добавления
         aiAssistantButton.visibility = View.GONE
         addProductButton.visibility = View.VISIBLE
 
-        // Настраиваем обработчик кнопки добавления
         addProductButton.setOnClickListener {
             openAddProductActivity()
         }
@@ -106,8 +101,6 @@ class CategoryActivity : AppCompatActivity() {
     private fun setupNormalUserMode() {
         setupClickListeners()
         setupAiAssistantButton()
-
-        // Скрываем кнопку добавления для обычных пользователей
         addProductButton.visibility = View.GONE
         aiAssistantButton.visibility = View.VISIBLE
     }
@@ -121,13 +114,12 @@ class CategoryActivity : AppCompatActivity() {
         val backButton = findViewById<TextView>(R.id.backButton)
         backButton.setOnClickListener {
             if (isAdminMode) {
-                // Если это режим админа - возвращаемся в админ каталог
                 val intent = Intent(this, CatalogActivity::class.java)
                 intent.putExtra("admin_mode", true)
                 startActivity(intent)
                 finish()
             } else {
-                finish() // Возврат назад к каталогу для обычных пользователей
+                finish()
             }
         }
     }
@@ -135,13 +127,311 @@ class CategoryActivity : AppCompatActivity() {
     private fun setupFilterButton() {
         val filterButton = findViewById<TextView>(R.id.filterButton)
         filterButton.setOnClickListener {
-            // Здесь можно добавить логику для фильтров
-            Toast.makeText(this, "Фильтры - в разработке", Toast.LENGTH_SHORT).show()
+            showFiltersDialog()
+        }
+    }
+
+    private fun loadCategoryFilters() {
+        categoryFilterOptions = CategoryFilterHelper.getFiltersForCategory(categoryName)
+    }
+
+    private fun showFiltersDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_filters, null) as ScrollView
+        val dialogContent = dialogView.getChildAt(0) as LinearLayout
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        // Находим все элементы
+        val sortDefault = dialogContent.findViewById<RadioButton>(R.id.sortDefault)
+        val sortPriceAsc = dialogContent.findViewById<RadioButton>(R.id.sortPriceAsc)
+        val sortPriceDesc = dialogContent.findViewById<RadioButton>(R.id.sortPriceDesc)
+        val sortNameAsc = dialogContent.findViewById<RadioButton>(R.id.sortNameAsc)
+        val minPriceInput = dialogContent.findViewById<EditText>(R.id.minPriceInput)
+        val maxPriceInput = dialogContent.findViewById<EditText>(R.id.maxPriceInput)
+        val manufacturerSpinner = dialogContent.findViewById<Spinner>(R.id.manufacturerSpinner)
+        val categoryFiltersDivider = dialogContent.findViewById<View>(R.id.categoryFiltersDivider)
+        val categoryFiltersTitle = dialogContent.findViewById<TextView>(R.id.categoryFiltersTitle)
+        val categoryFiltersContainer = dialogContent.findViewById<LinearLayout>(R.id.categoryFiltersContainer)
+
+        // Устанавливаем текущие значения
+        when (currentFilters.sortBy) {
+            SortBy.DEFAULT -> sortDefault.isChecked = true
+            SortBy.PRICE_ASC -> sortPriceAsc.isChecked = true
+            SortBy.PRICE_DESC -> sortPriceDesc.isChecked = true
+            SortBy.NAME_ASC -> sortNameAsc.isChecked = true
+        }
+
+        minPriceInput.setText(currentFilters.minPrice?.toInt().toString().takeIf { it != "null" } ?: "")
+        maxPriceInput.setText(currentFilters.maxPrice?.toInt().toString().takeIf { it != "null" } ?: "")
+
+        setupManufacturerSpinner(manufacturerSpinner)
+        setupCategoryFiltersAccordion(categoryFiltersContainer, categoryFiltersDivider, categoryFiltersTitle)
+
+        // Кнопка сброса
+        dialogContent.findViewById<Button>(R.id.btnReset).setOnClickListener {
+            sortDefault.isChecked = true
+            minPriceInput.setText("")
+            maxPriceInput.setText("")
+            manufacturerSpinner.setSelection(0)
+            resetCategoryFilters(categoryFiltersContainer)
+            Toast.makeText(this, "Фильтры сброшены", Toast.LENGTH_SHORT).show()
+        }
+
+        // Кнопка применения
+        dialogContent.findViewById<Button>(R.id.btnApply).setOnClickListener {
+            val sortBy = when {
+                sortPriceAsc.isChecked -> SortBy.PRICE_ASC
+                sortPriceDesc.isChecked -> SortBy.PRICE_DESC
+                sortNameAsc.isChecked -> SortBy.NAME_ASC
+                else -> SortBy.DEFAULT
+            }
+
+            val minPrice = minPriceInput.text.toString().toDoubleOrNull()
+            val maxPrice = maxPriceInput.text.toString().toDoubleOrNull()
+
+            val selectedManufacturer = if (manufacturerSpinner.selectedItemPosition > 0) {
+                manufacturerSpinner.selectedItem.toString()
+            } else {
+                null
+            }
+
+            val categoryFilters = collectCategoryFilters(categoryFiltersContainer)
+
+            currentFilters = FilterData(
+                sortBy = sortBy,
+                minPrice = minPrice,
+                maxPrice = maxPrice,
+                manufacturer = selectedManufacturer,
+                categoryFilters = categoryFilters
+            )
+
+            applyFilters()
+            dialog.dismiss()
+            showFilterNotification()
+        }
+
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),
+            (resources.displayMetrics.heightPixels * 0.85).toInt()
+        )
+    }
+
+    private fun setupManufacturerSpinner(spinner: Spinner) {
+        val manufacturerList = mutableListOf("Все производители").apply {
+            addAll(manufacturers)
+        }
+
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            manufacturerList
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+
+        spinner.adapter = adapter
+
+        val currentManufacturer = currentFilters.manufacturer ?: "Все производители"
+        val position = manufacturerList.indexOf(currentManufacturer)
+        if (position >= 0) {
+            spinner.setSelection(position)
+        }
+    }
+
+    private fun setupCategoryFiltersAccordion(container: LinearLayout, divider: View, title: TextView) {
+        if (categoryFilterOptions.isEmpty()) {
+            divider.visibility = View.GONE
+            title.visibility = View.GONE
+            container.visibility = View.GONE
+            return
+        }
+
+        divider.visibility = View.VISIBLE
+        title.visibility = View.VISIBLE
+        container.visibility = View.VISIBLE
+        container.removeAllViews()
+
+        // Восстанавливаем выбранные фильтры
+        val currentCategoryFilters = currentFilters.categoryFilters
+
+        for (filterOption in categoryFilterOptions) {
+            // Создаем аккордеон элемент
+            val accordionView = LayoutInflater.from(this).inflate(R.layout.filter_accordion_item, null)
+            val accordionHeader = accordionView.findViewById<LinearLayout>(R.id.accordionHeader)
+            val filterName = accordionView.findViewById<TextView>(R.id.filterName)
+            val expandIcon = accordionView.findViewById<ImageView>(R.id.expandIcon)
+            val accordionContent = accordionView.findViewById<LinearLayout>(R.id.accordionContent)
+            val checkboxesContainer = accordionView.findViewById<LinearLayout>(R.id.checkboxesContainer)
+            val selectAllText = accordionView.findViewById<TextView>(R.id.selectAllText)
+
+            filterName.text = filterOption.displayName
+
+            // Создаем чекбоксы для каждого значения
+            val checkBoxes = mutableListOf<CheckBox>()
+            for (value in filterOption.values) {
+                val checkBoxView = LayoutInflater.from(this).inflate(R.layout.checkbox_filter_value, null)
+                val checkBox = checkBoxView.findViewById<CheckBox>(R.id.filterCheckbox)
+                val valueText = checkBoxView.findViewById<TextView>(R.id.filterValueText)
+
+                valueText.text = value
+
+                // Проверяем, выбран ли этот фильтр
+                val isSelected = currentCategoryFilters[filterOption.key]?.contains(value) ?: false
+                checkBox.isChecked = isSelected
+
+                checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
+                    updateSelectAllButton(checkBoxes, selectAllText)
+                }
+
+                checkBoxes.add(checkBox)
+                checkboxesContainer.addView(checkBoxView)
+            }
+
+            // Кнопка "Выбрать все"
+            selectAllText.setOnClickListener {
+                val allChecked = checkBoxes.all { it.isChecked }
+                checkBoxes.forEach { it.isChecked = !allChecked }
+                updateSelectAllButton(checkBoxes, selectAllText)
+            }
+
+            updateSelectAllButton(checkBoxes, selectAllText)
+
+            // Обработчик клика на заголовок аккордеона
+            accordionHeader.setOnClickListener {
+                if (accordionContent.visibility == View.VISIBLE) {
+                    // Скрываем
+                    accordionContent.visibility = View.GONE
+                    expandIcon.setImageResource(R.drawable.ic_expand_more)
+                    expandedFilters.remove(filterOption.key)
+                } else {
+                    // Показываем
+                    accordionContent.visibility = View.VISIBLE
+                    expandIcon.setImageResource(R.drawable.ic_expand_less)
+                    expandedFilters.add(filterOption.key)
+                }
+            }
+
+            // Восстанавливаем состояние аккордеона
+            if (filterOption.key in expandedFilters) {
+                accordionContent.visibility = View.VISIBLE
+                expandIcon.setImageResource(R.drawable.ic_expand_less)
+            } else {
+                accordionContent.visibility = View.GONE
+                expandIcon.setImageResource(R.drawable.ic_expand_more)
+            }
+
+            container.addView(accordionView)
+        }
+    }
+
+    private fun updateSelectAllButton(checkBoxes: List<CheckBox>, selectAllText: TextView) {
+        val allChecked = checkBoxes.all { it.isChecked }
+        val someChecked = checkBoxes.any { it.isChecked } && !allChecked
+
+        selectAllText.text = when {
+            allChecked -> "Снять все"
+            someChecked -> "Выбрать все"
+            else -> "Выбрать все"
+        }
+    }
+
+    private fun resetCategoryFilters(container: LinearLayout) {
+        for (i in 0 until container.childCount) {
+            val accordionView = container.getChildAt(i)
+            val accordionContent = accordionView.findViewById<LinearLayout>(R.id.accordionContent)
+            val checkboxesContainer = accordionContent.findViewById<LinearLayout>(R.id.checkboxesContainer)
+
+            for (j in 0 until checkboxesContainer.childCount) {
+                val checkBoxView = checkboxesContainer.getChildAt(j)
+                val checkBox = checkBoxView.findViewById<CheckBox>(R.id.filterCheckbox)
+                checkBox.isChecked = false
+            }
+        }
+    }
+
+    private fun collectCategoryFilters(container: LinearLayout): Map<String, List<String>> {
+        val filters = mutableMapOf<String, MutableList<String>>()
+
+        for (i in 0 until container.childCount) {
+            val accordionView = container.getChildAt(i)
+            val filterName = accordionView.findViewById<TextView>(R.id.filterName).text.toString()
+            val accordionContent = accordionView.findViewById<LinearLayout>(R.id.accordionContent)
+
+            // Проверяем, есть ли контент (аккордеон может быть закрыт)
+            if (accordionContent.visibility == View.VISIBLE) {
+                val checkboxesContainer = accordionContent.findViewById<LinearLayout>(R.id.checkboxesContainer)
+
+                // Находим ключ фильтра по displayName
+                val filterOption = categoryFilterOptions.find { it.displayName == filterName }
+                filterOption?.let { option ->
+                    val selectedValues = mutableListOf<String>()
+
+                    for (j in 0 until checkboxesContainer.childCount) {
+                        val checkBoxView = checkboxesContainer.getChildAt(j)
+                        val checkBox = checkBoxView.findViewById<CheckBox>(R.id.filterCheckbox)
+                        val valueText = checkBoxView.findViewById<TextView>(R.id.filterValueText)
+
+                        if (checkBox.isChecked) {
+                            selectedValues.add(valueText.text.toString())
+                        }
+                    }
+
+                    if (selectedValues.isNotEmpty()) {
+                        filters[option.key] = selectedValues
+                    }
+                }
+            }
+        }
+
+        return filters
+    }
+
+    private fun showFilterNotification() {
+        val filtersApplied = mutableListOf<String>()
+
+        when (currentFilters.sortBy) {
+            SortBy.DEFAULT -> filtersApplied.add("Сортировка: Новые сначала")
+            SortBy.PRICE_ASC -> filtersApplied.add("Сортировка: Цена по возрастанию")
+            SortBy.PRICE_DESC -> filtersApplied.add("Сортировка: Цена по убыванию")
+            SortBy.NAME_ASC -> filtersApplied.add("Сортировка: Название А-Я")
+        }
+
+        currentFilters.minPrice?.let {
+            filtersApplied.add("Цена от: ${it.toInt()} ₽")
+        }
+
+        currentFilters.maxPrice?.let {
+            filtersApplied.add("Цена до: ${it.toInt()} ₽")
+        }
+
+        currentFilters.manufacturer?.let {
+            filtersApplied.add("Производитель: $it")
+        }
+
+        currentFilters.categoryFilters.forEach { (key, values) ->
+            val filterOption = categoryFilterOptions.find { it.key == key }
+            filterOption?.let {
+                if (values.size == 1) {
+                    filtersApplied.add("${filterOption.displayName}: ${values.first()}")
+                } else if (values.size <= 3) {
+                    filtersApplied.add("${filterOption.displayName}: ${values.joinToString(", ")}")
+                } else {
+                    filtersApplied.add("${filterOption.displayName}: ${values.size} выбрано")
+                }
+            }
+        }
+
+        if (filtersApplied.isNotEmpty()) {
+            Toast.makeText(this, "Применено:\n${filtersApplied.joinToString("\n")}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun setupClickListeners() {
-        // Обработчики для нижней навигации (только для обычных пользователей)
         findViewById<LinearLayout>(R.id.navCatalog)?.setOnClickListener {
             val intent = Intent(this, CatalogActivity::class.java)
             startActivity(intent)
@@ -171,18 +461,17 @@ class CategoryActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         productsAdapter = ProductAdapter(
             emptyList(),
-            isAdminMode = isAdminMode, // Передаем режим
+            isAdminMode = isAdminMode,
             onItemClick = { product ->
-                // ВСЕГДА открываем просмотр товара при клике на карточку
                 openProductDetailsActivity(product)
             },
             onAddToCartClick = { product ->
                 addToCart(product)
             },
-            onEditClick = { product -> // Новый обработчик для кнопки редактирования (иконка ✏️)
+            onEditClick = { product ->
                 openEditProductActivity(product)
             },
-            onDeleteClick = { product -> // Новый обработчик для кнопки удаления (иконка 🗑️)
+            onDeleteClick = { product ->
                 deleteProduct(product)
             }
         )
@@ -198,32 +487,164 @@ class CategoryActivity : AppCompatActivity() {
             .whereEqualTo("category", categoryName)
             .get()
             .addOnSuccessListener { documents ->
-                val productsList = mutableListOf<Product>()
+                allProducts.clear()
+                manufacturers.clear()
+
                 for (document in documents) {
                     try {
                         val product = document.toObject(Product::class.java)
-                        productsList.add(product)
+                        allProducts.add(product)
+
+                        if (product.manufacturer.isNotBlank() &&
+                            !manufacturers.contains(product.manufacturer)) {
+                            manufacturers.add(product.manufacturer)
+                        }
                     } catch (e: Exception) {
                         println("Ошибка парсинга товара ${document.id}: ${e.message}")
                     }
                 }
 
-                // Сортируем по дате создания (новые сначала)
-                val sortedProducts = productsList.sortedByDescending { it.createdAt }
-                productsAdapter.updateProducts(sortedProducts)
+                manufacturers.sort()
+                applyFilters()
                 showLoading(false)
-
-                if (sortedProducts.isEmpty()) {
-                    showEmptyState(true)
-                } else {
-                    showEmptyState(false)
-                }
             }
             .addOnFailureListener { exception ->
                 showLoading(false)
                 Toast.makeText(this, "Ошибка загрузки товаров: ${exception.message}", Toast.LENGTH_LONG).show()
                 showEmptyState(true)
             }
+    }
+
+    private fun applyFilters() {
+        var filteredProducts = allProducts.toMutableList()
+
+        // Фильтр по цене
+        currentFilters.minPrice?.let { minPrice ->
+            filteredProducts = filteredProducts.filter { it.price >= minPrice }.toMutableList()
+        }
+
+        currentFilters.maxPrice?.let { maxPrice ->
+            filteredProducts = filteredProducts.filter { it.price <= maxPrice }.toMutableList()
+        }
+
+        // Фильтр по производителю
+        currentFilters.manufacturer?.let { manufacturer ->
+            filteredProducts = filteredProducts.filter { it.manufacturer == manufacturer }.toMutableList()
+        }
+
+        // Фильтры по характеристикам категории
+        currentFilters.categoryFilters.forEach { (key, selectedValues) ->
+            filteredProducts = filteredProducts.filter { product ->
+                val productValue = product.specs[key] ?: ""
+                selectedValues.any { selectedValue ->
+                    productValue.contains(selectedValue, ignoreCase = true) ||
+                            when {
+                                key in listOf("cores", "threads", "memorySlots", "sataPorts", "m2Slots", "fansIncluded") -> {
+                                    val productNum = productValue.replace(Regex("[^0-9]"), "").toIntOrNull()
+                                    val selectedNum = selectedValue.replace(Regex("[^0-9]"), "").toIntOrNull()
+                                    productNum != null && selectedNum != null && productNum >= selectedNum
+                                }
+                                key == "memoryCapacity" || key == "storageCapacity" -> {
+                                    val productNum = extractCapacityNumber(productValue)
+                                    val selectedNum = extractCapacityNumber(selectedValue)
+                                    productNum != null && selectedNum != null && productNum >= selectedNum
+                                }
+                                key == "power" -> {
+                                    val productNum = productValue.replace(Regex("[^0-9]"), "").toIntOrNull()
+                                    val selectedNum = selectedValue.replace(Regex("[^0-9]"), "").toIntOrNull()
+                                    productNum != null && selectedNum != null && productNum >= selectedNum
+                                }
+                                key in listOf("gpuClock", "memoryClock", "frequency", "maxFrequency", "fanSpeed") -> {
+                                    handleRangeFilter(productValue, selectedValue)
+                                }
+                                else -> productValue.equals(selectedValue, ignoreCase = true)
+                            }
+                }
+            }.toMutableList()
+        }
+
+        // Сортировка
+        filteredProducts = when (currentFilters.sortBy) {
+            SortBy.DEFAULT -> filteredProducts.sortedByDescending { it.createdAt }.toMutableList()
+            SortBy.PRICE_ASC -> filteredProducts.sortedBy { it.price }.toMutableList()
+            SortBy.PRICE_DESC -> filteredProducts.sortedByDescending { it.price }.toMutableList()
+            SortBy.NAME_ASC -> filteredProducts.sortedBy { it.name.lowercase() }.toMutableList()
+        }
+
+        productsAdapter.updateProducts(filteredProducts)
+
+        if (filteredProducts.isEmpty()) {
+            showEmptyState(true)
+            if (allProducts.isNotEmpty()) {
+                emptyStateText.text = "Ничего не найдено\nПопробуйте изменить фильтры"
+            } else {
+                emptyStateText.text = "В этой категории пока нет товаров"
+            }
+        } else {
+            showEmptyState(false)
+        }
+
+        updateProductsCount(filteredProducts.size)
+    }
+
+    private fun extractCapacityNumber(value: String): Int? {
+        return when {
+            value.contains("TB", ignoreCase = true) -> {
+                val num = value.replace(Regex("[^0-9.]"), "").toDoubleOrNull()
+                (num?.times(1000))?.toInt()
+            }
+            value.contains("GB", ignoreCase = true) -> {
+                value.replace(Regex("[^0-9]"), "").toIntOrNull()
+            }
+            else -> value.replace(Regex("[^0-9]"), "").toIntOrNull()
+        }
+    }
+
+    private fun handleRangeFilter(productValue: String, selectedValue: String): Boolean {
+        val productNum = productValue.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: return false
+
+        return when {
+            selectedValue.startsWith("до") -> {
+                val max = selectedValue.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: return false
+                productNum <= max
+            }
+            selectedValue.startsWith("от") -> {
+                val min = selectedValue.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: return false
+                productNum >= min
+            }
+            selectedValue.contains("-") -> {
+                val parts = selectedValue.split("-")
+                if (parts.size == 2) {
+                    val min = parts[0].replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: return false
+                    val max = parts[1].replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: return false
+                    productNum in min..max
+                } else {
+                    false
+                }
+            }
+            else -> false
+        }
+    }
+
+    private fun updateProductsCount(count: Int) {
+        val filterButton = findViewById<TextView>(R.id.filterButton)
+        val activeFilters = mutableListOf<String>()
+
+        if (currentFilters.minPrice != null || currentFilters.maxPrice != null) {
+            activeFilters.add("цена")
+        }
+        if (currentFilters.manufacturer != null) {
+            activeFilters.add("производитель")
+        }
+        if (currentFilters.categoryFilters.isNotEmpty()) {
+            activeFilters.add("${currentFilters.categoryFilters.size} хар-ки")
+        }
+
+        if (activeFilters.isNotEmpty()) {
+            filterButton.text = "Фильтры (${activeFilters.joinToString(", ")})"
+        } else {
+            filterButton.text = "Фильтры"
+        }
     }
 
     private fun showLoading(show: Boolean) {
@@ -263,11 +684,10 @@ class CategoryActivity : AppCompatActivity() {
     private fun openProductDetailsActivity(product: Product) {
         val intent = Intent(this, ProductDetailsActivity::class.java)
         intent.putExtra("product_id", product.id)
-        intent.putExtra("admin_mode", isAdminMode) // Важно передать режим админа!
+        intent.putExtra("admin_mode", isAdminMode)
         startActivity(intent)
     }
 
-    // Новый метод для удаления товара
     private fun deleteProduct(product: Product) {
         if (product.id.isEmpty()) {
             Toast.makeText(this, "Ошибка: ID товара не найден", Toast.LENGTH_SHORT).show()
@@ -278,7 +698,7 @@ class CategoryActivity : AppCompatActivity() {
             .delete()
             .addOnSuccessListener {
                 Toast.makeText(this, "✅ Товар удален!", Toast.LENGTH_SHORT).show()
-                loadProducts() // Обновляем список
+                loadProducts()
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "❌ Ошибка удаления: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -297,14 +717,12 @@ class CategoryActivity : AppCompatActivity() {
             return
         }
 
-        // Проверяем, есть ли уже этот товар в корзине
         db.collection("cart")
             .whereEqualTo("userId", currentUser.uid)
             .whereEqualTo("productId", product.id)
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty) {
-                    // Товара нет в корзине - добавляем новый
                     val cartItem = hashMapOf(
                         "productId" to product.id,
                         "productName" to product.name,
@@ -325,7 +743,6 @@ class CategoryActivity : AppCompatActivity() {
                             Toast.makeText(this, "❌ Ошибка добавления: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                 } else {
-                    // Товар уже в корзине - увеличиваем количество
                     val document = documents.documents[0]
                     val currentQuantity = document.getLong("quantity")?.toInt() ?: 1
 
@@ -344,10 +761,10 @@ class CategoryActivity : AppCompatActivity() {
             }
     }
 
-    // Обновляем список при возврате на экран
     override fun onResume() {
         super.onResume()
-        // Обновляем список товаров при возврате на экран
         loadProducts()
     }
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 }

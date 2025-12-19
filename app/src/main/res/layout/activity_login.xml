@@ -118,7 +118,22 @@
 
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Забыли пароль -->
+
             <!-- Кнопка Войти -->
+            <TextView
+                android:id="@+id/forgotPasswordLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="20dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:text="Забыли пароль?"
+                android:textColor="#4169E1"
+                android:textSize="14sp" />
+
             <Button
                 android:id="@+id/loginButton"
                 android:layout_width="match_parent"
@@ -139,7 +154,7 @@
                 android:layout_marginBottom="20dp"
                 android:gravity="center"
                 android:text="или"
-                android:textColor="#80FFFFFF"
+                android:textColor="#4169E1"
                 android:textSize="16sp" />
 
             <!-- Кнопка Войти через Google -->
@@ -155,17 +170,28 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
+            <!-- Кнопка входа как гость -->
+            <Button
+                android:id="@+id/guestLoginButton"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginBottom="10dp"
+                android:backgroundTint="#33FFFFFF"
+                android:text="ВОЙТИ КАК ГОСТЬ"
+                android:textColor="#80FFFFFF"
+                android:textSize="16sp" />
+
             <!-- Ссылка на регистрацию -->
             <TextView
                 android:id="@+id/registerLink"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="25dp"
+                android:layout_marginTop="15dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="Не зарегистрированы?Регистрация"
-                android:textColor="#80FFFFFF"
+                android:textColor="#4169E1"
                 android:textSize="15sp" />
 
         </LinearLayout>

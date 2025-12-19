@@ -64,32 +64,35 @@ class ProductAdapter(
         // Устанавливаем характеристики в зависимости от категории
         when (product.category) {
             "Видеокарты" -> {
-                holder.memorySpec.text = "Память: ${product.specs["memory"] ?: "Не указано"}"
-                holder.clockSpec.text = "Частота: ${product.specs["gpuClock"] ?: "Не указано"}"
-                holder.connectorsSpec.text = "Разъемы: ${product.specs["connectors"] ?: "Не указано"}"
+                // ВАЖНО: В item_product.xml уже есть "Память:" в левой части,
+                // поэтому в правой части указываем только значение
+                holder.memorySpec.text = product.specs["memory"] ?: "Не указано"
+                holder.clockSpec.text = product.specs["gpuClock"] ?: "Не указано"
+                holder.connectorsSpec.text = product.specs["connectors"] ?: "Не указано"
             }
             "Процессоры" -> {
-                holder.memorySpec.text = "Ядер: ${product.specs["cores"] ?: "Не указано"}"
-                holder.clockSpec.text = "Частота: ${product.specs["frequency"] ?: "Не указано"}"
-                holder.connectorsSpec.text = "Сокет: ${product.specs["socket"] ?: "Не указано"}"
+                holder.memorySpec.text = product.specs["cores"] ?: "Не указано"
+                holder.clockSpec.text = product.specs["frequency"] ?: "Не указано"
+                holder.connectorsSpec.text = product.specs["socket"] ?: "Не указано"
             }
             "Память" -> {
-                holder.memorySpec.text = "Объем: ${product.specs["memoryCapacity"] ?: "Не указано"}"
-                holder.clockSpec.text = "Частота: ${product.specs["memoryFrequency"] ?: "Не указано"}"
-                holder.connectorsSpec.text = "Тайминги: ${product.specs["timings"] ?: "Не указано"}"
+                holder.memorySpec.text = product.specs["memoryCapacity"] ?: "Не указано"
+                holder.clockSpec.text = product.specs["memoryFrequency"] ?: "Не указано"
+                holder.connectorsSpec.text = product.specs["timings"] ?: "Не указано"
             }
             "Материнские платы" -> {
-                holder.memorySpec.text = "Сокет: ${product.specs["motherboardSocket"] ?: "Не указано"}"
-                holder.clockSpec.text = "Чипсет: ${product.specs["chipset"] ?: "Не указано"}"
-                holder.connectorsSpec.text = "Форм-фактор: ${product.specs["formFactor"] ?: "Не указано"}"
+                holder.memorySpec.text = product.specs["motherboardSocket"] ?: "Не указано"
+                holder.clockSpec.text = product.specs["chipset"] ?: "Не указано"
+                holder.connectorsSpec.text = product.specs["formFactor"] ?: "Не указано"
             }
             "Накопители" -> {
-                holder.memorySpec.text = "Тип: ${product.specs["storageType"] ?: "Не указано"}"
-                holder.clockSpec.text = "Объем: ${product.specs["storageCapacity"] ?: "Не указано"}"
-                holder.connectorsSpec.text = "Интерфейс: ${product.specs["interfaceType"] ?: "Не указано"}"
+                holder.memorySpec.text = product.specs["storageType"] ?: "Не указано"
+                holder.clockSpec.text = product.specs["storageCapacity"] ?: "Не указано"
+                holder.connectorsSpec.text = product.specs["interfaceType"] ?: "Не указано"
             }
             else -> {
-                holder.memorySpec.text = product.specs.values.firstOrNull() ?: "Характеристики"
+                // Для остальных категорий
+                holder.memorySpec.text = product.specs.values.firstOrNull() ?: "Не указано"
                 holder.clockSpec.text = product.specs.values.elementAtOrNull(1) ?: "Не указано"
                 holder.connectorsSpec.text = product.specs.values.elementAtOrNull(2) ?: "Не указано"
             }

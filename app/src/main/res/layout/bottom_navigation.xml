@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/bottom_navigation"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#000000"
-    android:paddingBottom="?android:attr/actionBarSize">
+    android:background="#000000">
 
-    <!-- Основная панель навигации -->
+    <!-- Основная панель навигации - ПРОЗРАЧНЫЙ фон -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="#1AFFFFFF"
+        android:layout_height="80dp"
+        android:background="#00000000"
         android:orientation="horizontal"
-        android:gravity="center">
+        android:gravity="center"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
 
+        <!-- Каталог -->
         <LinearLayout
             android:id="@+id/navCatalog"
             android:layout_width="0dp"
@@ -23,23 +26,28 @@
             android:orientation="vertical"
             android:gravity="center"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="&#128193;"
-                android:textSize="20sp" />
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_home"
+                android:scaleType="fitCenter"
+                android:contentDescription="Каталог" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Каталог"
-                android:textColor="#80FFFFFF"
-                android:textSize="10sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="6dp" />
 
         </LinearLayout>
 
+        <!-- Корзина -->
         <LinearLayout
             android:id="@+id/navCart"
             android:layout_width="0dp"
@@ -48,23 +56,28 @@
             android:orientation="vertical"
             android:gravity="center"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="&#128722;"
-                android:textSize="20sp" />
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_cart"
+                android:scaleType="fitCenter"
+                android:contentDescription="Корзина" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Корзина"
-                android:textColor="#80FFFFFF"
-                android:textSize="10sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="6dp" />
 
         </LinearLayout>
 
+        <!-- Профиль -->
         <LinearLayout
             android:id="@+id/navProfile"
             android:layout_width="0dp"
@@ -73,20 +86,24 @@
             android:orientation="vertical"
             android:gravity="center"
             android:clickable="true"
-            android:focusable="true">
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="&#128100;"
-                android:textSize="20sp" />
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_profile"
+                android:scaleType="fitCenter"
+                android:contentDescription="Профиль" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Профиль"
-                android:textColor="#80FFFFFF"
-                android:textSize="10sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="6dp" />
 
         </LinearLayout>
 

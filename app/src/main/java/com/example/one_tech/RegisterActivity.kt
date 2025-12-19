@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
@@ -53,27 +54,24 @@ class RegisterActivity : AppCompatActivity() {
         if (validateInput(username, email, password)) {
             showLoading(true)
 
+            // Проверяем, был ли пользователь гостем
+            val currentUser = auth.currentUser
+            val isGuest = currentUser?.isAnonymous == true
+
             auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        val user = auth.currentUser
-                        user?.let {
-                            // Сохраняем данные пользователя в Firestore
-                            saveUserToFirestore(
-                                user.uid,
-                                username,
-                                email,
-                                ""
-                            )
-                        }
-                        Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
-
-                        // Проверяем роль пользователя и переходим на соответствующий экран
-                        val userId = auth.currentUser?.uid
-                        if (userId != null) {
-                            checkUserRoleAndNavigate(userId)
-                        } else {
-                            goToCatalog()
+                        val newUser = auth.currentUser
+                        newUser?.let { user ->
+                            if (isGuest && currentUser != null) {
+                                // Был гость - предлагаем перенести данные
+                                showGuestMigrationDialog(currentUser.uid, user.uid, username, email)
+                            } else {
+                                // Новый пользователь (не из гостевого режима)
+                                saveUserToFirestore(user.uid, username, email, "")
+                                Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
+                                goToCatalog()
+                            }
                         }
                     } else {
                         showLoading(false)
@@ -83,14 +81,96 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
+    private fun showGuestMigrationDialog(oldGuestUid: String, newUid: String, username: String, email: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Перенос данных")
+            .setMessage("Хотите перенести корзину и данные из гостевого режима?")
+            .setPositiveButton("Да") { dialog, _ ->
+                dialog.dismiss()
+                migrateGuestData(oldGuestUid, newUid, username, email)
+            }
+            .setNegativeButton("Нет, создать новый") { dialog, _ ->
+                dialog.dismiss()
+                // Удаляем гостевой аккаунт, создаем нового пользователя
+                auth.currentUser?.let { currentUser ->
+                    if (currentUser.uid == oldGuestUid) {
+                        currentUser.delete()
+                    }
+                }
+                saveUserToFirestore(newUid, username, email, "")
+                Toast.makeText(this, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
+                goToCatalog()
+            }
+            .setCancelable(false)
+            .create()
+            .show()
+    }
+
+    private fun migrateGuestData(oldGuestUid: String, newUid: String, username: String, email: String) {
+        showLoading(true)
+
+        // 1. Переносим корзину
+        db.collection("cart")
+            .whereEqualTo("userId", oldGuestUid)
+            .get()
+            .addOnSuccessListener { cartDocuments ->
+                val batch = db.batch()
+
+                for (document in cartDocuments) {
+                    val newCartRef = db.collection("cart").document()
+                    batch.set(newCartRef, document.data.apply {
+                        this["userId"] = newUid
+                    })
+                    batch.delete(document.reference)
+                }
+
+                // 2. Обновляем документ пользователя
+                val userData = hashMapOf(
+                    "uid" to newUid,
+                    "email" to email,
+                    "username" to username.lowercase(),
+                    "displayName" to username,
+                    "isGuest" to false,
+                    "createdAt" to com.google.firebase.Timestamp.now(),
+                    "lastLoginAt" to com.google.firebase.Timestamp.now(),
+                    "migratedFromGuest" to true,
+                    "oldGuestUid" to oldGuestUid
+                )
+
+                batch.set(db.collection("users").document(newUid), userData)
+                batch.delete(db.collection("users").document(oldGuestUid))
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        showLoading(false)
+                        Toast.makeText(this, "Регистрация успешна! Данные перенесены.", Toast.LENGTH_SHORT).show()
+                        goToCatalog()
+                    }
+                    .addOnFailureListener { e ->
+                        showLoading(false)
+                        Toast.makeText(this, "Ошибка переноса данных: ${e.message}", Toast.LENGTH_SHORT).show()
+                        goToCatalog()
+                    }
+            }
+            .addOnFailureListener { e ->
+                showLoading(false)
+                // Если не удалось перенести корзину, все равно создаем пользователя
+                saveUserToFirestore(newUid, username, email, "")
+                Toast.makeText(this, "Регистрация успешна! Не удалось перенести корзину.", Toast.LENGTH_SHORT).show()
+                goToCatalog()
+            }
+    }
+
     private fun saveUserToFirestore(uid: String, username: String, email: String, photoUrl: String) {
         val userData = hashMapOf(
             "uid" to uid,
             "email" to email,
-            "username" to username,
+            "username" to username.lowercase(),
             "displayName" to username,
             "photoUrl" to photoUrl,
-            "createdAt" to com.google.firebase.Timestamp.now()
+            "isGuest" to false,
+            "createdAt" to com.google.firebase.Timestamp.now(),
+            "lastLoginAt" to com.google.firebase.Timestamp.now()
         )
 
         db.collection("users")

@@ -9,4 +9,5 @@
     <color name="field_text_color">#FFFFFF</color>
     <!-- Для Bottom Navigation -->
     <color name="bottom_nav_color">#FF000000</color>
+    <color name="primary_blue">#4169E1</color>
 </resources>

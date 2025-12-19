@@ -30,6 +30,7 @@
 
     <!-- Верхняя карточка профиля - серый с закругленными краями -->
     <LinearLayout
+        android:id="@+id/profileCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -92,7 +93,9 @@
         android:padding="16dp"
         android:paddingTop="0dp">
 
+        <!-- ДОБАВЬ СЮДА ID -->
         <LinearLayout
+            android:id="@+id/scrollViewContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">

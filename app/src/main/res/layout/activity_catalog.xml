@@ -22,17 +22,18 @@
         android:padding="20dp"
         android:paddingBottom="10dp" />
 
-    <!-- Сетка категорий -->
+    <!-- Сетка категорий с большими элементами -->
     <GridView
         android:id="@+id/categoriesGrid"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:numColumns="3"
-        android:verticalSpacing="12dp"
-        android:horizontalSpacing="12dp"
-        android:padding="20dp"
-        android:stretchMode="columnWidth" />
+        android:verticalSpacing="6dp"
+        android:horizontalSpacing="4dp"
+        android:padding="10dp"
+        android:stretchMode="columnWidth"
+        android:columnWidth="130dp" />
 
     <!-- Нижняя навигация С ID -->
     <include
