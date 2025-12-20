@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#1E1E1E"
+    android:layout_margin="8dp"
+    android:padding="16dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <!-- Заголовок заказа -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/orderIdText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Заказ #000000"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/orderDateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="01.01.2024"
+            android:textSize="12sp"
+            android:textColor="#CCCCCC"/>
+
+    </LinearLayout>
+
+    <!-- Статус и сумма -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/orderStatusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏳ Ожидает"
+            android:textSize="14sp"
+            android:textColor="#FF9800"
+            android:textStyle="bold"/>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+
+        <TextView
+            android:id="@+id/orderTotalText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 ₽"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+    <!-- Превью товаров -->
+    <TextView
+        android:id="@+id/itemsPreviewText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Товары: Телефон, Наушники..."
+        android:textSize="12sp"
+        android:textColor="#AAAAAA"
+        android:maxLines="1"
+        android:ellipsize="end"/>
+
+</LinearLayout>

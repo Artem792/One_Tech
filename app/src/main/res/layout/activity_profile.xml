@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
@@ -28,7 +29,7 @@
 
     </LinearLayout>
 
-    <!-- Верхняя карточка профиля - серый с закругленными краями -->
+    <!-- Верхняя карточка профиля -->
     <LinearLayout
         android:id="@+id/profileCard"
         android:layout_width="match_parent"
@@ -46,24 +47,33 @@
             android:gravity="center_vertical">
 
             <!-- Круглое фото -->
-            <LinearLayout
+            <androidx.cardview.widget.CardView
+                android:id="@+id/avatarCard"
                 android:layout_width="60dp"
                 android:layout_height="60dp"
-                android:background="@drawable/circle_background"
-                android:gravity="center"
-                android:layout_marginEnd="16dp">
+                android:layout_marginEnd="16dp"
+                app:cardCornerRadius="30dp"
+                app:cardElevation="4dp">
 
-                <TextView
-                    android:id="@+id/userAvatar"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="👤"
-                    android:textSize="24sp"
-                    android:textColor="#4169E1" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/circle_background"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
-            </LinearLayout>
+                    <TextView
+                        android:id="@+id/userAvatar"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👤"
+                        android:textSize="24sp"
+                        android:textColor="#4169E1" />
 
-            <!-- Имя -->
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Имя и email -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -79,6 +89,15 @@
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/userEmailText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="email@example.com"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
+
             </LinearLayout>
 
         </LinearLayout>
@@ -93,14 +112,13 @@
         android:padding="16dp"
         android:paddingTop="0dp">
 
-        <!-- ДОБАВЬ СЮДА ID -->
         <LinearLayout
             android:id="@+id/scrollViewContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Разделы профиля в одном сером прямоугольнике с закругленными краями -->
+            <!-- Разделы профиля -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -193,19 +211,89 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Настройки"
+                        android:text="Настройки профиля"
                         android:textColor="#FFFFFF"
                         android:textSize="16sp" />
 
                     <TextView
+                        android:id="@+id/settingsArrow"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="❯"
+                        android:text="▼"
                         android:textColor="#80FFFFFF"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
                 </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- СЕКЦИЯ РЕДАКТИРОВАНИЯ ПРОФИЛЯ (скрыта по умолчанию) -->
+            <LinearLayout
+                android:id="@+id/editProfileSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/gray_rounded_background"
+                android:layout_marginTop="8dp"
+                android:padding="20dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Изменить имя"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:paddingBottom="12dp" />
+
+                <!-- Поле для редактирования имени -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:boxCornerRadiusBottomEnd="15dp"
+                    app:boxCornerRadiusBottomStart="15dp"
+                    app:boxCornerRadiusTopEnd="15dp"
+                    app:boxCornerRadiusTopStart="15dp"
+                    app:boxStrokeColor="#33FFFFFF"
+                    app:hintTextColor="#80FFFFFF">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editNameInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Новое имя"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:padding="16dp"
+                        android:background="#1AFFFFFF" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Кнопка изменения фото -->
+                <Button
+                    android:id="@+id/changePhotoButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginBottom="20dp"
+                    android:backgroundTint="#334169E1"
+                    android:text="ИЗМЕНИТЬ ФОТО ПРОФИЛЯ"
+                    android:textColor="#4169E1"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <!-- Кнопка сохранения -->
+                <Button
+                    android:id="@+id/saveChangesButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:backgroundTint="#4169E1"
+                    android:text="СОХРАНИТЬ ИЗМЕНЕНИЯ"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
             </LinearLayout>
 

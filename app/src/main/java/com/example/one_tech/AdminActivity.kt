@@ -233,8 +233,10 @@ class AdminActivity : AppCompatActivity() {
                 }
 
                 // Кнопка управления заказами
+                // В методе setupAdminFeatures() замените обработчик manageOrdersBtn:
                 findViewById<Button>(R.id.manageOrdersBtn).setOnClickListener {
-                    Toast.makeText(this, "Управление заказами - в разработке", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(this, AdminOrdersActivity::class.java)
+                    startActivity(intent)
                 }
 
                 // Кнопка статистики

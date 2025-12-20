@@ -26,6 +26,8 @@ data class Product(
     val createdBy: String = "",
     val updatedAt: Timestamp = Timestamp.now()
 ) {
+    // ... остальной код остается без изменений ...
+
 
     // Вспомогательные методы для получения характеристик
     fun getSpec(key: String): String = specs[key] ?: ""

@@ -1,5 +1,11 @@
 package com.example.one_tech
 
+import android.text.Html
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.content.ClipboardManager
+import android.content.ClipData
+import java.util.*
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -15,6 +21,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.text.SimpleDateFormat
+import java.util.*
 
 class CartActivity : AppCompatActivity() {
 
@@ -177,7 +185,7 @@ class CartActivity : AppCompatActivity() {
                 }
             }
             .addOnFailureListener {
-                // При ошибке считаем обычным пользователем
+                // Если не можем проверить, считаем обычным пользователем
                 proceedWithOrder(currentUser.uid)
             }
     }
@@ -188,7 +196,6 @@ class CartActivity : AppCompatActivity() {
             .setMessage("Гостевой режим позволяет только добавлять товары в корзину. Для оформления заказа зарегистрируйтесь.")
             .setPositiveButton("Зарегистрироваться") { dialog, _ ->
                 dialog.dismiss()
-                // Переход на регистрацию
                 val intent = Intent(this, RegisterActivity::class.java)
                 startActivity(intent)
             }
@@ -203,6 +210,7 @@ class CartActivity : AppCompatActivity() {
             .show()
     }
 
+    // ОСНОВНОЙ МЕТОД ОФОРМЛЕНИЯ ЗАКАЗА
     private fun proceedWithOrder(userId: String) {
         showLoading(true)
 
@@ -245,6 +253,16 @@ class CartActivity : AppCompatActivity() {
                 db.collection("orders")
                     .add(orderData)
                     .addOnSuccessListener { orderDoc ->
+                        Log.d(TAG, "✅ Заказ создан! ID: ${orderDoc.id}")
+
+                        // АВТОМАТИЧЕСКАЯ ОТПРАВКА HTML-ЧЕКА
+                        sendHtmlReceiptAutomatically(
+                            orderId = orderDoc.id,
+                            items = orderItems,
+                            totalAmount = totalAmount,
+                            userId = userId
+                        )
+
                         // Удаляем все товары из корзины
                         val batch = db.batch()
                         for (document in documents) {
@@ -254,27 +272,237 @@ class CartActivity : AppCompatActivity() {
                         batch.commit()
                             .addOnSuccessListener {
                                 showLoading(false)
-                                Log.d(TAG, "✅ Заказ оформлен! ID: ${orderDoc.id}")
-                                Toast.makeText(this, "✅ Заказ успешно оформлен!", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this, "✅ Заказ оформлен! Чек отправлен на ваш email.", Toast.LENGTH_LONG).show()
                                 loadCartItems() // Обновляем интерфейс
                             }
                             .addOnFailureListener { e ->
                                 showLoading(false)
                                 Log.e(TAG, "❌ Ошибка очистки корзины: ${e.message}")
-                                Toast.makeText(this, "❌ Ошибка очистки корзины: ${e.message}", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this, "❌ Ошибка очистки корзины", Toast.LENGTH_LONG).show()
                             }
                     }
                     .addOnFailureListener { e ->
                         showLoading(false)
                         Log.e(TAG, "❌ Ошибка создания заказа: ${e.message}")
-                        Toast.makeText(this, "❌ Ошибка оформления заказа: ${e.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "❌ Ошибка оформления заказа", Toast.LENGTH_LONG).show()
                     }
             }
             .addOnFailureListener { e ->
                 showLoading(false)
                 Log.e(TAG, "❌ Ошибка получения корзины: ${e.message}")
-                Toast.makeText(this, "❌ Ошибка получения корзины: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "❌ Ошибка получения корзины", Toast.LENGTH_LONG).show()
             }
+    }
+
+    // НОВЫЙ МЕТОД: АВТОМАТИЧЕСКАЯ ОТПРАВКА HTML-ЧЕКА
+    private fun sendHtmlReceiptAutomatically(orderId: String, items: List<Map<String, Any>>, totalAmount: Double, userId: String) {
+        // Получаем данные пользователя из Firestore
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { userDoc ->
+                val userEmail = userDoc.getString("email") ?: ""
+                val userName = userDoc.getString("displayName") ?: userDoc.getString("username") ?: "Пользователь"
+
+                if (userEmail.isEmpty()) {
+                    Log.e(TAG, "❌ Email пользователя не найден")
+                    return@addOnSuccessListener
+                }
+
+                // Форматируем дату
+                val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+                val currentDate = dateFormat.format(Date())
+
+                // Создаем HTML-чек
+                val htmlReceipt = buildString {
+                    append("""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Чек заказа №$orderId</title>
+                        <style>
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: #f9f9f9; }
+                            .receipt-container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+                            .header { text-align: center; padding-bottom: 20px; border-bottom: 2px solid #4CAF50; margin-bottom: 30px; }
+                            .header h1 { color: #2c3e50; font-size: 28px; margin-bottom: 10px; }
+                            .header p { color: #7f8c8d; font-size: 16px; }
+                            .company-info { text-align: center; margin-bottom: 20px; }
+                            .company-info h2 { color: #4CAF50; font-size: 22px; }
+                            .order-details { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+                            .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                            .detail-label { font-weight: 600; color: #555; }
+                            .detail-value { color: #2c3e50; }
+                            .items-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+                            .items-table th { background: #4CAF50; color: white; padding: 15px; text-align: left; font-weight: 600; }
+                            .items-table td { padding: 15px; border-bottom: 1px solid #eee; }
+                            .items-table tr:hover { background: #f5f5f5; }
+                            .total-section { text-align: right; margin-top: 30px; padding-top: 20px; border-top: 2px solid #4CAF50; }
+                            .total-amount { font-size: 28px; color: #e74c3c; font-weight: bold; }
+                            .footer { margin-top: 40px; text-align: center; color: #95a5a6; font-size: 14px; padding-top: 20px; border-top: 1px solid #eee; }
+                            .status { display: inline-block; background: #4CAF50; color: white; padding: 5px 15px; border-radius: 20px; font-size: 14px; }
+                            .highlight { background: #fffde7; padding: 3px 6px; border-radius: 4px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="receipt-container">
+                            <div class="header">
+                                <h1>ONE TECH STORE</h1>
+                                <p>Ваш чек заказа</p>
+                            </div>
+                            
+                            <div class="company-info">
+                                <h2>Чек № <span class="highlight">$orderId</span></h2>
+                                <p>Дата: $currentDate</p>
+                            </div>
+                            
+                            <div class="order-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Покупатель:</span>
+                                    <span class="detail-value">$userName</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Email:</span>
+                                    <span class="detail-value">$userEmail</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Статус заказа:</span>
+                                    <span class="detail-value"><span class="status">ОФОРМЛЕН</span></span>
+                                </div>
+                            </div>
+                            
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Товар</th>
+                                        <th>Количество</th>
+                                        <th>Цена за шт.</th>
+                                        <th>Сумма</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                """)
+
+                    // Добавляем строки с товарами
+                    items.forEachIndexed { index, item ->
+                        val number = index + 1
+                        val productName = item["productName"] as String
+                        val quantity = (item["quantity"] as Long).toInt()
+                        val price = item["price"] as Double
+                        val sum = quantity * price
+
+                        append("""
+                        <tr>
+                            <td>$number</td>
+                            <td>$productName</td>
+                            <td>$quantity</td>
+                            <td>${String.format("%,.0f", price)} ₽</td>
+                            <td><strong>${String.format("%,.0f", sum)} ₽</strong></td>
+                        </tr>
+                    """)
+                    }
+
+                    append("""
+                                </tbody>
+                            </table>
+                            
+                            <div class="total-section">
+                                <h3>ИТОГОВАЯ СУММА</h3>
+                                <div class="total-amount">${String.format("%,.0f", totalAmount)} ₽</div>
+                                <p><small>Включая все налоги и сборы</small></p>
+                            </div>
+                            
+                            <div class="footer">
+                                <p>Благодарим за покупку в One Tech Store!</p>
+                                <p>Этот чек сформирован автоматически. Сохраните его для учета.</p>
+                                <p>По вопросам: support@onetech.ru | +7 (999) 123-45-67</p>
+                                <p>© ${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())} One Tech Store. Все права защищены.</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                """)
+                }
+
+                // Автоматически отправляем email
+                sendAutoEmail(
+                    recipientEmail = userEmail,
+                    subject = "Ваш чек заказа №$orderId от One Tech Store",
+                    htmlBody = htmlReceipt
+                )
+
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Ошибка получения данных пользователя", e)
+                // Показываем уведомление
+                Toast.makeText(this, "Чек не отправлен: данные пользователя не найдены", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // МЕТОД ДЛЯ АВТОМАТИЧЕСКОЙ ОТПРАВКИ EMAIL
+    private fun sendAutoEmail(recipientEmail: String, subject: String, htmlBody: String) {
+        try {
+            // Создаем Intent для отправки email
+            val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/html"
+                // Указываем получателя (email пользователя)
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(recipientEmail))
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, Html.fromHtml(htmlBody))
+                // Указываем, что это HTML
+                putExtra(Intent.EXTRA_HTML_TEXT, htmlBody)
+            }
+
+            // Пытаемся запустить почтовое приложение
+            startActivity(Intent.createChooser(emailIntent, "Отправка чека..."))
+
+            Log.d(TAG, "✅ Email отправлен на: $recipientEmail")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Ошибка отправки email", e)
+
+            // Если нет почтового приложения, показываем чек в WebView
+            showReceiptInWebView(htmlBody, subject)
+        }
+    }
+
+    // ПОКАЗ ЧЕКА В WEBVIEW (если нет почтового приложения)
+    private fun showReceiptInWebView(htmlContent: String, title: String) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("Установите почтовое приложение для отправки чека. Вот ваш чек:")
+            .setPositiveButton("Скопировать чек") { dialog, _ ->
+                // Копируем HTML в буфер обмена
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Чек заказа", Html.fromHtml(htmlContent).toString())
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Чек скопирован", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Закрыть") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .create()
+
+        // Создаем WebView для отображения HTML
+        val webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                800 // Высота
+            )
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(webView)
+        }
+
+        dialog.setView(container)
+        dialog.show()
     }
 
     private fun updateTotalPrice(cartItems: List<CartItem>) {
